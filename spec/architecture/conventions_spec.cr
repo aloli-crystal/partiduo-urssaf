@@ -27,6 +27,14 @@ describe "Conventions de l'extension URSSAF" do
     missing.should be_empty
   end
 
+  it "ne mentionne pas le logiciel d'origine hors *.adoc et *.md" do
+    # Classe de caractères : le motif ne se trouve pas lui-même.
+    output = IO::Memory.new
+    Process.run("git", ["grep", "-il", "no[a]lyss", "--", ".", ":!*.adoc", ":!*.md"],
+      chdir: Urssaf::SpecSupport::ROOT, output: output)
+    output.to_s.should be_empty
+  end
+
   it "a les mêmes clés de traduction en fr, en et nl" do
     %w[src/urssaf/locales ui/bulma/locales].each do |dir|
       keys = Partiduo::LOCALES.to_h do |locale|
