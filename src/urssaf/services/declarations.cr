@@ -56,16 +56,24 @@ module Urssaf
       end
     end
 
-    def self.periods(year : Int32, today : Time = Partiduo::Config.today) : Array(ApiT::PeriodView)
+    # Périodes de l'année, lues dans le module `micro` avec l'acteur réel
+    # (`micro.register.read` exigé par le module, DECISIONS D-URS-010) ;
+    # déclarations et paiements chargés en deux requêtes.
+    def self.periods(actor : Partiduo::Api::Actor, year : Int32,
+                     today : Time = Partiduo::Config.today) : Array(ApiT::PeriodView)
       settings = Settings.current!
-      micro_settings = Micro.settings(SYSTEM)
-      Micro.declarations(SYSTEM, year, today).map do |declaration|
-        filing = Filing.filter(starts_on: declaration.starts_on).first
+      periodicity = Micro.settings(actor).periodicity
+      declarations = Micro.declarations(actor, year, today)
+      filings = Filing.filter(starts_on__in: declarations.map(&.starts_on)).to_a
+      views = filing_views(filings)
+      by_start = filings.index_by(&.starts_on!)
+      declarations.map do |declaration|
+        filing = by_start[declaration.starts_on]?
         ApiT::PeriodView.new(
           starts_on: declaration.starts_on, ends_on: declaration.ends_on, due_on: declaration.due_on,
           micro_status: declaration.status, turnover: turnover(declaration), estimated_total: declaration.total,
-          filing: filing.try { |row| filing_view(row) },
-          controls: controls(declaration, filing, settings, micro_settings.periodicity),
+          filing: filing.try { |row| views[row.id!.to_i64]? },
+          controls: controls(declaration, filing, settings, periodicity),
         )
       end
     end
@@ -84,6 +92,10 @@ module Urssaf
       if !remote_periodicity.empty? && remote_periodicity != periodicity
         list << control("periodicity_mismatch", params: {"urssaf" => remote_periodicity, "micro" => periodicity})
       end
+      negative = turnover(declaration).select { |_, amount| amount < 0 }.keys
+      unless negative.empty?
+        list << control("negative_turnover", params: {"categories" => negative.join(", ")})
+      end
       unless declaration.missing_rates.empty?
         list << control("missing_rates", "warning", {"rates" => declaration.missing_rates.join(", ")})
       end
@@ -91,8 +103,8 @@ module Urssaf
       list
     end
 
-    def self.period(starts_on : Time) : Micro::DeclarationView?
-      Micro.declarations(SYSTEM, starts_on.year).find(&.starts_on.==(starts_on))
+    def self.period(actor : Partiduo::Api::Actor, starts_on : Time) : Micro::DeclarationView?
+      Micro.declarations(actor, starts_on.year).find(&.starts_on.==(starts_on))
     end
 
     def self.submission(declaration : Micro::DeclarationView, reference : String, mandate_ref : String) : Submission
@@ -187,7 +199,7 @@ module Urssaf
         return result.failure(error(FieldError::BASE, ex.key, ex.params))
       end
       settings.save!
-      log("eligibility", "#{settings.eligible} #{settings.periodicity}", actor)
+      log("eligibility", {"eligible" => settings.eligible.to_s, "periodicity" => settings.periodicity.to_s}.to_json, actor)
       result.success(Api.settings_view(settings, true))
     end
 
@@ -202,7 +214,7 @@ module Urssaf
 
     def self.estimate!(starts_on : Time, actor : Partiduo::Api::Actor) : Partiduo::Api::Result(Array(ApiT::ContributionView))
       result = Partiduo::Api::Result(Array(ApiT::ContributionView))
-      declaration = period(starts_on)
+      declaration = period(actor, starts_on)
       return result.failure(error("starts_on", "urssaf.errors.period")) unless declaration
       connection = self.connection
       return result.failure(connection) if connection.is_a?(FieldError)
@@ -220,13 +232,38 @@ module Urssaf
     # Déclare la période à l'URSSAF, garde l'accusé et les cotisations
     # dues, puis note la déclaration dans le module `micro`. Un rejet de
     # l'URSSAF est conservé avec son motif (nouvelle tentative possible).
+    #
+    # Idempotente (DECISIONS D-URS-008) : la référence remise à l'URSSAF
+    # ne dépend que de la période et du nombre de rejets déjà reçus ; une
+    # tentative interrompue (panne après acceptation, échec de
+    # l'enregistrement) renvoie la même référence, et l'URSSAF rend le même
+    # accusé. Les déclarations d'une même période sont sérialisées (verrou
+    # consultatif dans une transaction qui couvre contrôle, appel et
+    # enregistrement).
     def self.declare!(starts_on : Time, actor : Partiduo::Api::Actor) : Partiduo::Api::Result(ApiT::PeriodView)
       result = Partiduo::Api::Result(ApiT::PeriodView)
-      declaration = period(starts_on)
+      declaration = period(actor, starts_on)
       return result.failure(error("starts_on", "urssaf.errors.period")) unless declaration
+      outcome = serialized("declare:#{declaration.starts_on.to_s("%Y-%m-%d")}") do
+        transmit(declaration, actor)
+      end
+      return result.failure(outcome.errors) if outcome.failure?
+      view = periods(actor, starts_on.year).find(&.starts_on.==(declaration.starts_on))
+      view ? result.success(view) : result.failure(error("starts_on", "urssaf.errors.period"))
+    end
+
+    # Référence de la tentative : `PDUO-URSSAF-<SIREN>-<AAAAMMJJ>-<n>`, `n`
+    # = rejets déjà reçus + 1 ; jamais d'horodatage.
+    def self.reference(declaration : Micro::DeclarationView, filing : Filing?) : String
+      attempt = (filing.try(&.attempts) || 0) + 1
+      "PDUO-URSSAF-#{siren}-#{declaration.starts_on.to_s("%Y%m%d")}-#{attempt}"
+    end
+
+    private def self.transmit(declaration : Micro::DeclarationView, actor : Partiduo::Api::Actor) : Partiduo::Api::Result(Nil)
+      result = Partiduo::Api::Result(Nil)
       settings = Settings.current!
       filing = Filing.filter(starts_on: declaration.starts_on).first
-      blocking = controls(declaration, filing, settings, Micro.settings(SYSTEM).periodicity).select(&.error?)
+      blocking = controls(declaration, filing, settings, Micro.settings(actor).periodicity).select(&.error?)
       if (existing = filing) && existing.status == "accepted"
         blocking << control("already_transmitted", params: {"reference" => existing.remote_id.to_s})
       end
@@ -236,8 +273,7 @@ module Urssaf
       connection = self.connection
       return result.failure(connection) if connection.is_a?(FieldError)
       transport, credentials = connection
-      reference = "PDUO-URSSAF-#{siren}-#{declaration.starts_on.to_s("%Y%m%d")}-#{Time.utc.to_unix}"
-      sent = submission(declaration, reference, settings.mandate_ref.to_s)
+      sent = submission(declaration, reference(declaration, filing), settings.mandate_ref.to_s)
       begin
         ack = transport.declare(credentials, sent)
       rescue ex : TransportError
@@ -252,11 +288,24 @@ module Urssaf
       receipt_id = store_receipt(ack, sent, actor)
       save_filing(filing, declaration, sent, ack, "", actor, receipt_id)
       log("declared", ack.remote_id, actor)
-      marked = Micro.mark_declared(SYSTEM, Micro::DeclarationInput.new(declaration.starts_on, Partiduo::Config.today,
+      marked = Micro.mark_declared(actor, Micro::DeclarationInput.new(declaration.starts_on, Partiduo::Config.today,
         ack.remote_id[0, Math.min(ack.remote_id.size, 100)]))
       log("error", marked.errors.map(&.key).join(", "), actor) if marked.failure?
-      view = periods(starts_on.year).find(&.starts_on.==(declaration.starts_on))
-      view ? result.success(view) : result.failure(error("starts_on", "urssaf.errors.period"))
+      result.success(nil)
+    end
+
+    # Exécute le bloc dans une transaction, sous un verrou consultatif de
+    # PostgreSQL propre à la clé (`urssaf:<clé>`), libéré à la fin de la
+    # transaction. Une exception annule tout ; un résultat en échec est
+    # gardé (rejet, historique).
+    def self.serialized(key : String, & : -> T) : T forall T
+      connection = Marten::DB::Connection.default
+      value = nil
+      connection.transaction do
+        connection.open { |db| db.exec("SELECT pg_advisory_xact_lock(hashtext($1))", "urssaf:#{key}") }
+        value = yield
+      end
+      value.as(T)
     end
 
     # Accusé conservé en pièce jointe du socle : le document rendu par
@@ -309,6 +358,7 @@ module Urssaf
       row.transmitted_at = Time.utc
       row.transmitted_by_id = actor.user_id
       row.receipt_attachment_id = receipt_id
+      row.attempts = (row.attempts || 0) + 1 unless ack
       row.save!
       return if ack
       log("rejected", reason, actor)
@@ -318,15 +368,23 @@ module Urssaf
     # --- Vues et historique ------------------------------------------------------------
 
     def self.filing_view(row : Filing) : ApiT::FilingView
-      turnover = Hash(String, String).from_json(row.turnover.to_s).transform_values { |value| BigDecimal.new(value) }
-      contributions = Array(Hash(String, String)).from_json(row.contributions.to_s).map do |item|
-        ApiT::ContributionView.new(item["category"], BigDecimal.new(item["turnover"]), BigDecimal.new(item["amount"]))
+      filing_views([row])[row.id!.to_i64]
+    end
+
+    # Vues des déclarations, paiements chargés en une requête.
+    def self.filing_views(rows : Array(Filing)) : Hash(Int64, ApiT::FilingView)
+      payments = FollowUp.payments_by_filing(rows)
+      rows.to_h do |row|
+        id = row.id!.to_i64
+        turnover = Hash(String, String).from_json(row.turnover.to_s).transform_values { |value| BigDecimal.new(value) }
+        contributions = Array(Hash(String, String)).from_json(row.contributions.to_s).map do |item|
+          ApiT::ContributionView.new(item["category"], BigDecimal.new(item["turnover"]), BigDecimal.new(item["amount"]))
+        end
+        {id, ApiT::FilingView.new(status: row.status.to_s, remote_id: row.remote_id.to_s, turnover: turnover,
+          contributions: contributions, contributions_total: row.contributions_total || BigDecimal.new(0),
+          payment_due_on: row.payment_due_on, reason: row.reason.to_s, transmitted_at: row.transmitted_at!,
+          receipt_attachment_id: row.receipt_attachment_id.try(&.to_i64), payments: payments[id]? || [] of ApiT::PaymentView)}
       end
-      payments = FollowUp.payments_of(row)
-      ApiT::FilingView.new(status: row.status.to_s, remote_id: row.remote_id.to_s, turnover: turnover,
-        contributions: contributions, contributions_total: row.contributions_total || BigDecimal.new(0),
-        payment_due_on: row.payment_due_on, reason: row.reason.to_s, transmitted_at: row.transmitted_at!,
-        receipt_attachment_id: row.receipt_attachment_id.try(&.to_i64), payments: payments)
     end
 
     def self.log(action : String, detail : String, actor : Partiduo::Api::Actor) : Nil
@@ -334,8 +392,11 @@ module Urssaf
         created_at: Time.utc)
     end
 
-    def self.events : Array(ApiT::EventView)
-      Event.all.order("-id").map do |event|
+    # Historique, du plus récent au plus ancien ; `limit` appliqué en SQL.
+    def self.events(limit : Int32? = nil) : Array(ApiT::EventView)
+      rows = Event.all.order("-id")
+      rows = rows.limit(limit) if limit
+      rows.map do |event|
         ApiT::EventView.new(event.action.to_s, event.detail.to_s, event.user_id.try(&.as(Int).to_i64), event.created_at!)
       end
     end

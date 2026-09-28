@@ -16,7 +16,9 @@ module Urssaf
 
     # --- Anomalies -------------------------------------------------------------------
 
-    # Ouvre une anomalie, sauf si la même est déjà ouverte.
+    # Ouvre une anomalie, sauf si la même est déjà ouverte. Le détail est
+    # neutre (motif de l'URSSAF, ou JSON de montants et de références),
+    # traduit et mis en forme à l'affichage (DECISIONS D-URS-011).
     def self.anomaly(code : String, detail : String, filing : (Int32 | Int64)? = nil) : Nil
       filing_id = filing.try(&.to_i64)
       detail = detail[0, Math.min(detail.size, 2000)]
@@ -43,14 +45,22 @@ module Urssaf
       row.resolved_at = Time.utc
       row.resolved_by_id = actor.user_id
       row.save!
-      Declarations.log("resolved", "#{row.code} #{row.detail}", actor)
+      Declarations.log("resolved", {"code" => row.code.to_s}.to_json, actor)
       Partiduo::Api::Result(Nil).success(nil)
     end
 
     # --- Paiements -------------------------------------------------------------------
 
-    def self.payments_of(filing : Filing) : Array(ApiT::PaymentView)
-      Payment.filter(filing_id: filing.id).order("id").map { |row| payment_view(row, filing.starts_on!) }
+    # Paiements des déclarations, en une requête, par déclaration.
+    def self.payments_by_filing(filings : Array(Filing)) : Hash(Int64, Array(ApiT::PaymentView))
+      grouped = {} of Int64 => Array(ApiT::PaymentView)
+      return grouped if filings.empty?
+      starts = filings.to_h { |row| {row.id!.to_i64, row.starts_on!} }
+      Payment.filter(filing_id__in: starts.keys).order("id").each do |row|
+        id = row.filing_id!.to_i64
+        (grouped[id] ||= [] of ApiT::PaymentView) << payment_view(row, starts[id])
+      end
+      grouped
     end
 
     def self.payment_view(row : Payment, starts_on : Time) : ApiT::PaymentView
@@ -58,9 +68,20 @@ module Urssaf
         row.status.to_s, row.reason.to_s, row.created_at!, row.updated_at!)
     end
 
-    def self.payments : Array(ApiT::PaymentView)
-      starts = Filing.all.to_h { |row| {row.id, row.starts_on!} }
-      Payment.all.order("-id").map { |row| payment_view(row, starts[row.filing_id]) }
+    # Paiements, du plus récent au plus ancien ; `limit` appliqué en SQL.
+    def self.payments(limit : Int32? = nil) : Array(ApiT::PaymentView)
+      rows = Payment.all.order("-id")
+      rows = rows.limit(limit) if limit
+      list = rows.to_a
+      starts = Filing.filter(id__in: list.map(&.filing_id!).uniq!).to_h { |row| {row.id!.to_i64, row.starts_on!} }
+      list.map { |row| payment_view(row, starts[row.filing_id!.to_i64]) }
+    end
+
+    # Montant en chaîne décimale à deux décimales (`105.00`), neutre :
+    # mis en forme à l'affichage.
+    def self.decimal(value : BigDecimal) : String
+      whole, _, fraction = value.round(2).to_s.partition('.')
+      "#{whole}.#{fraction.ljust(2, '0')[0, 2]}"
     end
 
     # Télépaiement SEPA du reste dû d'une déclaration acceptée, par le
@@ -68,11 +89,23 @@ module Urssaf
     # payer, mandat de tierce déclaration non notifié, aucun mandat SEPA
     # actif, transport ou identifiants absents ; rejet de l'URSSAF gardé
     # (paiement `rejected`, anomalie).
+    #
+    # Le montant tient compte de l'état chez l'URSSAF (DECISIONS D-URS-009) :
+    # min(reste dû local, cotisations selon l'URSSAF − payé selon l'URSSAF −
+    # paiements locaux en cours) ; rien si des cotisations ont été payées
+    # ailleurs. Les paiements d'une même déclaration sont sérialisés (verrou
+    # consultatif, transaction) : la référence `PDUO-PAY-…-<n>` est unique.
     def self.pay!(starts_on : Time, actor : Actor) : Partiduo::Api::Result(ApiT::PaymentView)
       result = Partiduo::Api::Result(ApiT::PaymentView)
       filing = Filing.filter(starts_on: starts_on, status: "accepted").first
       return result.failure(FieldError.new("starts_on", "urssaf.errors.payment.not_declared")) unless filing
-      remaining = Declarations.filing_view(filing).remaining
+      Declarations.serialized("pay:#{filing.id}") { pay_locked(filing, actor) }
+    end
+
+    private def self.pay_locked(filing : Filing, actor : Actor) : Partiduo::Api::Result(ApiT::PaymentView)
+      result = Partiduo::Api::Result(ApiT::PaymentView)
+      view = Declarations.filing_view(filing)
+      remaining = view.remaining
       return result.failure(FieldError.base("urssaf.errors.payment.nothing_due")) unless remaining > ZERO
       settings = Settings.current!
       return result.failure(FieldError.base("urssaf.controls.mandate_missing")) unless settings.mandate_status == "notified"
@@ -81,22 +114,41 @@ module Urssaf
       connection = Declarations.connection
       return result.failure(connection) if connection.is_a?(FieldError)
       transport, credentials = connection
+      begin
+        state = transport.declaration_state(credentials, filing.remote_id.to_s)
+      rescue ex : TransportError
+        Declarations.log("error", ex.key, actor)
+        return result.failure(FieldError.base(ex.key, ex.params))
+      end
+      check_paid(filing, state, view)
+      pending = view.payments.select(&.status.==("initiated")).sum(ZERO, &.amount)
+      remote_due = state.total - state.paid - pending
+      amount = remote_due < remaining ? remote_due : remaining
+      return result.failure(FieldError.base("urssaf.errors.payment.nothing_due")) unless amount > ZERO
       count = Payment.filter(filing_id: filing.id).count + 1
-      reference = "PDUO-PAY-#{Declarations.siren}-#{starts_on.to_s("%Y%m%d")}-#{count}"
+      reference = "PDUO-PAY-#{Declarations.siren}-#{filing.starts_on!.to_s("%Y%m%d")}-#{count}"
       order = PaymentOrder.new(reference: reference, siren: Declarations.siren, declaration_id: filing.remote_id.to_s,
-        amount: remaining, sepa_rum: sepa.rum.to_s)
+        amount: amount, sepa_rum: sepa.rum.to_s)
       begin
         state = transport.pay(credentials, order)
       rescue ex : TransportError
         Declarations.log("error", ex.key, actor)
         return result.failure(FieldError.base(ex.key, ex.params))
       end
-      row = Payment.create!(filing_id: filing.id, reference: reference, remote_id: state.remote_id, amount: remaining,
+      row = Payment.create!(filing_id: filing.id, reference: reference, remote_id: state.remote_id, amount: amount,
         sepa_rum: sepa.rum, status: known_status(state.status), reason: rejection_reason(state),
         initiated_by_id: actor.user_id)
-      Declarations.log("paid", "#{filing.remote_id} #{remaining}", actor)
+      Declarations.log("paid", {"declaration" => filing.remote_id.to_s, "amount" => decimal(amount)}.to_json, actor)
       payment_rejected(row, filing, actor) if row.status == "rejected"
       result.success(payment_view(row, filing.starts_on!))
+    end
+
+    # L'URSSAF compte plus de paiements effectués que Partiduo (paiement
+    # fait dans l'espace URSSAF, régularisation) : anomalie `paid_elsewhere`.
+    private def self.check_paid(filing : Filing, state : DeclarationState, view : ApiT::FilingView) : Nil
+      local = view.paid_total
+      return unless state.paid > local
+      anomaly("paid_elsewhere", {"urssaf" => decimal(state.paid), "partiduo" => decimal(local)}.to_json, filing.id)
     end
 
     private def self.known_status(status : String) : String
@@ -108,7 +160,7 @@ module Urssaf
     end
 
     private def self.payment_rejected(row : Payment, filing : Filing, actor : Actor) : Nil
-      Declarations.log("payment_rejected", "#{row.remote_id} #{row.reason}", actor)
+      Declarations.log("payment_rejected", {"payment" => row.remote_id.to_s, "reason" => row.reason.to_s}.to_json, actor)
       anomaly("payment_rejected", row.reason.to_s, filing.id)
     end
 
@@ -174,7 +226,7 @@ module Urssaf
     # si l'adaptateur le rendait en clair.
     private def self.upsert_sepa(mandate : SepaMandate) : SepaMandateRow
       row = SepaMandateRow.filter(rum: mandate.rum).first || SepaMandateRow.new(rum: mandate.rum)
-      row.iban_masked = mandate.iban_masked.matches?(/[0-9A-Z]{9,}/) ? Iban.mask(mandate.iban_masked) : mandate.iban_masked
+      row.iban_masked = Iban.clear?(mandate.iban_masked) ? Iban.mask(mandate.iban_masked) : mandate.iban_masked
       row.holder = mandate.holder[0, Math.min(mandate.holder.size, 140)]
       row.signed_on = mandate.signed_on
       if mandate.status == "revoked"
@@ -226,20 +278,29 @@ module Urssaf
     end
 
     private def self.refresh_filings(transport : Transport, credentials : Credentials) : Nil
-      Filing.filter(status: "accepted").each do |filing|
+      filings = Filing.filter(status: "accepted").to_a
+      views = Declarations.filing_views(filings)
+      filings.each do |filing|
         state = transport.declaration_state(credentials, filing.remote_id.to_s)
         known = filing.contributions_total || ZERO
         if state.total != known
-          anomaly("contributions_changed", I18n.t("urssaf.anomaly_details.contributions_changed",
-            before: known.to_s, after: state.total.to_s), filing.id)
+          anomaly("contributions_changed", {"before" => decimal(known), "after" => decimal(state.total)}.to_json,
+            filing.id)
         end
+        views[filing.id!.to_i64]?.try { |view| check_paid(filing, state, view) }
         state.anomalies.each { |text| anomaly("urssaf", text, filing.id) }
       end
     end
 
     private def self.refresh_payments(transport : Transport, credentials : Credentials, actor : Actor) : Nil
       Payment.filter(status: "initiated").each do |row|
-        next if row.remote_id.to_s.empty?
+        # Sans numéro de l'URSSAF, le paiement ne peut être relevé : il
+        # bloque le reste dû jusqu'à vérification dans l'espace URSSAF.
+        if row.remote_id.to_s.empty?
+          anomaly("payment_unknown", {"reference" => row.reference.to_s, "amount" => decimal(row.amount || ZERO)}.to_json,
+            row.filing_id)
+          next
+        end
         state = transport.payment_state(credentials, row.remote_id.to_s)
         status = known_status(state.status)
         next if status == row.status
@@ -248,7 +309,8 @@ module Urssaf
         row.save!
         filing = Filing.get!(id: row.filing_id)
         if status == "done"
-          Declarations.log("payment_done", "#{row.remote_id} #{row.amount}", actor)
+          Declarations.log("payment_done", {"payment" => row.remote_id.to_s, "amount" => decimal(row.amount || ZERO)}.to_json,
+            actor)
         else
           payment_rejected(row, filing, actor)
         end
@@ -267,15 +329,26 @@ module Urssaf
 
     # --- Vue d'ensemble ----------------------------------------------------------------
 
-    def self.overview(today : Time) : ApiT::OverviewView
-      filings = Filing.filter(status: "accepted").map { |row| Declarations.filing_view(row) }
-      due = filings.sum(ZERO, &.contributions_total)
-      paid = filings.sum(ZERO, &.paid_total)
-      remaining = filings.sum(ZERO, &.remaining)
-      periods = (Declarations.periods(today.year - 1, today) + Declarations.periods(today.year, today))
-      start = activity_start(today)
-      to_declare = periods.select do |item|
-        item.filing.try(&.status) != "accepted" && item.micro_status.in?("due", "late") && item.ends_on >= start
+    # Vue d'ensemble. Les périodes de l'année précédente et de l'année en
+    # cours viennent du module `micro` (acteur réel) ; celles déjà
+    # calculées par l'appelant (`known`, par exemple l'année affichée) ne
+    # sont pas recalculées. Sans `micro.register.read`, aucune période à
+    # déclarer n'est listée (le reste du suivi l'est).
+    def self.overview(actor : Actor, today : Time, known : Array(ApiT::PeriodView) = [] of ApiT::PeriodView) : ApiT::OverviewView
+      filings = Filing.filter(status: "accepted").to_a
+      views = Declarations.filing_views(filings).values
+      due = views.sum(ZERO, &.contributions_total)
+      paid = views.sum(ZERO, &.paid_total)
+      remaining = views.sum(ZERO, &.remaining)
+      periods = [] of ApiT::PeriodView
+      to_declare = [] of ApiT::PeriodView
+      if actor.can?(Micro::READ)
+        {today.year - 1, today.year}.each do |year|
+          cached = known.select(&.starts_on.year.==(year))
+          periods.concat(cached.empty? ? Declarations.periods(actor, year, today) : cached)
+        end
+        start = activity_start(actor, today)
+        to_declare = periods.select { |item| to_declare?(item.filing.try(&.status), item.micro_status, item.ends_on, start) }
       end
       to_pay = periods.select(&.payable?)
       settings = Settings.current!
@@ -286,21 +359,46 @@ module Urssaf
       )
     end
 
+    private def self.to_declare?(status : String?, micro_status : String, ends_on : Time, start : Time) : Bool
+      status != "accepted" && micro_status.in?("due", "late") && ends_on >= start
+    end
+
     # Début du suivi des échéances, comme l'aide URSSAF du module `micro` :
     # début d'activité, à défaut la première recette, à défaut le 1er
     # janvier de l'année en cours (une période à zéro reste à déclarer).
-    private def self.activity_start(today : Time) : Time
-      system = Partiduo::Api::Actor.system
-      Micro.settings(system).activity_started_on ||
-        Micro.receipts(system, Micro::RegisterQuery.new(limit: 1)).first?.try(&.date) ||
+    private def self.activity_start(actor : Actor, today : Time) : Time
+      Micro.settings(actor).activity_started_on ||
+        Micro.receipts(actor, Micro::RegisterQuery.new(limit: 1)).first?.try(&.date) ||
         Time.utc(today.year, 1, 1)
     end
 
-    # Nombre d'éléments à traiter : périodes à déclarer, cotisations à
-    # payer, anomalies ouvertes (compteur du menu).
-    def self.pending_count(today : Time) : Int64
-      view = overview(today)
-      (view.to_declare.size + view.to_pay.size + view.anomalies.size).to_i64
+    # Nombre d'éléments à traiter (compteur du menu, évalué à chaque page) :
+    # anomalies ouvertes et déclarations au reste dû positif, comptées en
+    # SQL ; périodes à déclarer d'après le module `micro` (deux lectures des
+    # déclarations de l'année, une requête des déclarations transmises), si
+    # l'acteur peut le lire (DECISIONS D-URS-012).
+    def self.pending_count(actor : Actor, today : Time) : Int64
+      count = Anomaly.filter(resolved_at: nil).count.to_i64 + payable_count
+      return count unless actor.can?(Micro::READ)
+      declarations = {today.year - 1, today.year}.flat_map { |year| Micro.declarations(actor, year, today) }
+      candidates = declarations.select(&.status.in?("due", "late"))
+      return count if candidates.empty?
+      accepted = Filing.filter(starts_on__in: candidates.map(&.starts_on), status: "accepted").to_a.map(&.starts_on!).to_set
+      start = activity_start(actor, today)
+      count + candidates.count { |item| to_declare?(accepted.includes?(item.starts_on) ? "accepted" : nil, item.status, item.ends_on, start) }
+    end
+
+    # Déclarations acceptées dont le reste dû (cotisations moins paiements
+    # effectués ou en cours) est positif, en une requête.
+    private def self.payable_count : Int64
+      Marten::DB::Connection.default.open do |db|
+        db.scalar(<<-SQL).as(Int64)
+          SELECT count(*) FROM urssaf_filing f
+          WHERE f.status = 'accepted'
+            AND f.contributions_total > coalesce((SELECT sum(p.amount) FROM urssaf_payment p
+                                                  WHERE p.filing_id = f.id AND p.status <> 'rejected'), 0)
+          SQL
+      end
     end
   end
 end

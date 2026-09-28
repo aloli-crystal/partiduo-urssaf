@@ -5,7 +5,7 @@ module Urssaf
   # période, `starts_on`) : chiffre d'affaires déclaré par catégorie (JSON,
   # montants en chaîne décimale), numéro de la déclaration, cotisations dues
   # (JSON) et leur total, date limite de paiement, accusé en pièce jointe
-  # du socle ; `rejected` avec motif.
+  # du socle ; `rejected` avec motif ; nombre de rejets reçus.
   # Intangible une fois acceptée (déclencheur). Interne.
   class Filing < Marten::Model
     field :id, :big_int, primary_key: true, auto: true
@@ -21,6 +21,9 @@ module Urssaf
     field :transmitted_at, :date_time
     field :transmitted_by_id, :big_int, blank: true, null: true
     field :receipt_attachment_id, :big_int, blank: true, null: true
+    # Rejets de l'URSSAF déjà reçus pour la période : la référence de la
+    # tentative suivante en dépend (idempotence, migration 0004).
+    field :attempts, :int, default: 0
 
     with_timestamp_fields
   end

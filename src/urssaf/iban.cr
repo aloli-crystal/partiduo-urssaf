@@ -17,9 +17,15 @@ module Urssaf
 
     # `FR76 **** **** 1234` : pays, clé et quatre derniers caractères.
     def self.mask(value : String) : String
-      iban = normalize(value)
+      iban = value.gsub(/[^0-9A-Za-z]/, "").upcase
       return "****" if iban.size < 8
       "#{iban[0, 4]} **** **** #{iban[-4..]}"
+    end
+
+    # Vrai si la valeur laisse voir un IBAN en clair : neuf caractères du
+    # compte ou plus d'affilée, séparateurs (espaces, tirets…) ignorés.
+    def self.clear?(value : String) : Bool
+      value.gsub(/[^0-9A-Za-z*]/, "").matches?(/[0-9A-Za-z]{9,}/)
     end
 
     # BIC (ISO 9362) : vide ou 8 / 11 caractères.

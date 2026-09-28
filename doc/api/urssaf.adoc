@@ -34,13 +34,22 @@ d'accès en première ligne, vues immuables, `Result` à erreurs par champ,
 
 * `periods(actor, year, today) : Array(PeriodView)` — périodes du module
   `micro`, chiffre d'affaires par catégorie arrondi à l'euro, estimation
-  de Partiduo, déclaration transmise, contrôles (`urssaf.controls.*`).
-* `estimate(actor, starts_on) : Result(Array(ContributionView))`.
+  de Partiduo, déclaration transmise, contrôles (`urssaf.controls.*`,
+  dont `negative_turnover`, bloquant). Lu dans le module `micro` avec
+  l'acteur : exige aussi `micro.register.read` (D-URS-010).
+* `estimate(actor, starts_on) : Result(Array(ContributionView))` —
+  `micro.register.read` aussi.
 * `declare(actor, starts_on) : Result(PeriodView)` — refus : période en
   cours, déjà déclarée ou transmise, mandat non notifié, compte non
   éligible, périodicité différente, transport ou identifiants absents ;
-  rejet de l'URSSAF conservé (`rejected`, motif).
-* `events(actor) : Array(EventView)`.
+  rejet de l'URSSAF conservé (`rejected`, motif). Exige aussi
+  `micro.register.write` (déclaration notée dans le module), vérifié
+  avant tout appel. Idempotente : référence
+  `PDUO-URSSAF-<SIREN>-<AAAAMMJJ>-<n>` (`n` = rejets reçus + 1, sans
+  horodatage) ; déclarations d'une même période sérialisées (verrou
+  consultatif, transaction) (D-URS-008).
+* `events(actor, limit = nil) : Array(EventView)` — détails neutres
+  (JSON de chaînes) traduits à l'affichage.
 * `receipt(actor, starts_on) : ReceiptView` — accusé conservé en pièce
   jointe du socle (document de l'URSSAF, sinon accusé texte établi d'après
   sa réponse) ; `NotFound` s'il n'y en a pas.
@@ -51,24 +60,30 @@ paiements effectués ou en cours) ; `PeriodView#payable?`.
 
 == Suivi, paiements, mandats SEPA
 
-* `overview(actor, today) : OverviewView` — état du mandat, transport,
-  cotisations dues, payées, reste dû, périodes à déclarer (échéance
-  passée ou proche, pas avant le début d'activité) et à payer, anomalies
-  ouvertes, mandat SEPA actif.
-* `pending_count(actor, today) : Int64` — à déclarer + à payer +
-  anomalies (compteur du menu).
-* `refresh(actor) : Result(Int32)` — relève le mandat (révoqué depuis
+* `overview(actor, today, known = [] of PeriodView) : OverviewView` —
+  état du mandat, transport, cotisations dues, payées, reste dû, périodes
+  à déclarer (échéance passée ou proche, pas avant le début d'activité)
+  et à payer (vides sans `micro.register.read`), anomalies ouvertes,
+  mandat SEPA actif ; `known` : périodes déjà lues, non recalculées.
+* `pending_count(actor, today) : Int64` — anomalies ouvertes +
+  déclarations au reste dû positif (SQL) + périodes à déclarer (compteur
+  du menu, calcul léger, D-URS-012).
+* `refresh(actor) : Result(Int32)` — permission `transmit` ; relève le mandat (révoqué depuis
   l'espace URSSAF : noté révoqué, anomalie), les déclarations
-  (régularisation, anomalies signalées), les paiements initiés et les
-  mandats SEPA ; rend le nombre d'anomalies ouvertes.
+  (régularisation, paiements faits hors de Partiduo, anomalies
+  signalées), les paiements initiés (sans numéro de l'URSSAF : anomalie)
+  et les mandats SEPA ; rend le nombre d'anomalies ouvertes.
 * `anomalies(actor, open_only = true) : Array(AnomalyView)` — codes
   `rejected`, `urssaf`, `contributions_changed`, `payment_rejected`,
-  `mandate_revoked` ; `resolve_anomaly(actor, id) : Result(Nil)`
+  `mandate_revoked`, `paid_elsewhere`, `payment_unknown` ; détail neutre
+  (motif de l'URSSAF ou JSON) ; `resolve_anomaly(actor, id) : Result(Nil)`
   (permission `transmit`).
-* `payments(actor) : Array(PaymentView)` — `initiated`, `done`,
+* `payments(actor, limit = nil) : Array(PaymentView)` — `initiated`, `done`,
   `rejected` (motif).
-* `pay(actor, starts_on) : Result(PaymentView)` — reste dû de la
-  déclaration acceptée, par le mandat SEPA actif ; refus :
+* `pay(actor, starts_on) : Result(PaymentView)` — min(reste dû local,
+  cotisations selon l'URSSAF − payé selon l'URSSAF − paiements en cours),
+  par le mandat SEPA actif ; paiements d'une déclaration sérialisés
+  (D-URS-009) ; refus :
   `urssaf.errors.payment.not_declared`, `.nothing_due`, `.no_sepa`,
   mandat de tierce déclaration non notifié, transport ou identifiants
   absents.

@@ -58,8 +58,18 @@ fr:
       contributions_changed: "Cotisations modifiées par l'URSSAF"
       payment_rejected: "Paiement rejeté"
       mandate_revoked: "Mandat révoqué depuis l'espace URSSAF"
+      paid_elsewhere: "Cotisations payées hors de Partiduo"
+      payment_unknown: "Paiement sans numéro de l'URSSAF"
     anomaly_details:
       contributions_changed: "%{before} à l'accusé, %{after} selon l'URSSAF"
+      paid_elsewhere: "%{urssaf} payés selon l'URSSAF, %{partiduo} par Partiduo : vérifiez avant de payer"
+      payment_unknown: "Ordre %{reference} de %{amount} sans numéro de l'URSSAF : vérifiez-le dans l'espace URSSAF"
+    event_details:
+      eligibility: "Éligible : %{eligible} ; périodicité : %{periodicity}"
+      paid: "Déclaration %{declaration} : %{amount}"
+      payment_done: "Paiement %{payment} : %{amount}"
+      payment_rejected: "Paiement %{payment} : %{reason}"
+      resolved: "%{code}"
     receipt:
       title: "Accusé de déclaration du chiffre d'affaires — URSSAF (tierce déclaration)"
       number: "Numéro de la déclaration : %{number}"
@@ -78,6 +88,7 @@ fr:
       not_eligible: "Compte non éligible à la tierce déclaration : %{reason}"
       periodicity_mismatch: "Périodicité différente : %{urssaf} pour l'URSSAF, %{micro} dans les paramètres de la micro-entreprise."
       missing_rates: "Taux absents dans Partiduo (%{rates}) : l'URSSAF calcule elle-même les cotisations."
+      negative_turnover: "Chiffre d'affaires négatif (%{categories}) : l'URSSAF n'accepte que des montants positifs ou nuls ; vérifiez les avoirs de la période."
       no_transport: "Connexion à l'URSSAF pas encore branchée : déclarez sur le site de l'URSSAF, puis notez la déclaration dans l'écran URSSAF."
       no_credentials: "Enregistrez les identifiants de l'API dans les paramètres de l'URSSAF en ligne."
     errors:

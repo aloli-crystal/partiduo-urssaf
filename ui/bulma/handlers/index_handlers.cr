@@ -5,14 +5,21 @@ module Urssaf
     # `/ext/URSSAF/` : périodes de l'année (périodicité du module `micro`),
     # chiffre d'affaires à déclarer, cotisations estimées par Partiduo et
     # dues selon l'URSSAF, état du mandat, estimation, déclaration.
+    # Année bornée (2000 à l'an prochain) ; sans `micro.register.read`, pas
+    # de périodes (chiffre d'affaires du module) ; les périodes affichées
+    # sont reprises par la vue d'ensemble sans nouveau calcul.
     class IndexHandler < Handler
+      YEARS   = 2000
+      HISTORY =   20
+
       def get
         actor = current.actor
         today = Partiduo::Api::Core.today
-        year = query("year").to_i? || today.year
+        year = query("year").to_i?.try(&.clamp(YEARS, today.year + 1)) || today.year
         settings = Api.settings(actor)
-        periods = Api.periods(actor, year)
-        overview = Api.overview(actor, today)
+        micro = can?("micro.register.read")
+        periods = micro ? Api.periods(actor, year, today) : [] of Api::PeriodView
+        overview = Api.overview(actor, today, periods)
         sepa = overview.sepa_mandate
         page("urssaf/index.html", {
           "title"        => I18n.t("urssaf_ui.title"),
@@ -45,9 +52,9 @@ module Urssaf
           "anomalies"    => listed(overview.anomalies.map { |item| Present.anomaly(item, fmt) }),
           "sepa"         => sepa.try { |item| Present.sepa(item, fmt) },
           "today"        => today.to_s("%Y-%m-%d"),
-          "payments"     => listed(Api.payments(actor).first(20).map { |item| Present.payment(item, fmt) }),
-          "events"       => listed(Api.events(actor).first(20).map { |event| Present.event(event, fmt) }),
-          "micro_urssaf" => can?("micro.register.read") ? reverse("micro:urssaf") : nil,
+          "payments"     => listed(Api.payments(actor, HISTORY).map { |item| Present.payment(item, fmt) }),
+          "events"       => listed(Api.events(actor, HISTORY).map { |event| Present.event(event, fmt) }),
+          "micro_urssaf" => micro ? reverse("micro:urssaf") : nil,
         })
       end
     end
@@ -62,9 +69,12 @@ module Urssaf
         return back_to_year(nil) unless day
         result = Api.estimate(current.actor, day)
         if contributions = result.value?
-          lines = contributions.map { |item| "#{I18n.t(item.category_key)} : #{fmt.amount(item.amount)}" }
+          lines = contributions.map do |item|
+            I18n.t("urssaf_ui.flash.estimate_line", category: I18n.t(item.category_key), amount: fmt.amount(item.amount))
+          end
           total = contributions.sum(BigDecimal.new(0), &.amount)
-          flash["info"] = I18n.t("urssaf_ui.flash.estimated", total: fmt.amount(total), detail: lines.join(" · "))
+          flash["info"] = I18n.t("urssaf_ui.flash.estimated", total: fmt.amount(total),
+            detail: lines.join(I18n.t("urssaf_ui.flash.estimate_separator")))
         else
           flash["danger"] = messages(result)
         end

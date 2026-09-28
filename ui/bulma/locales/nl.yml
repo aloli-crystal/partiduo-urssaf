@@ -1,6 +1,11 @@
 nl:
   urssaf_ui:
     title: "Online URSSAF-aangifte"
+    period_range: "%{from} – %{to}"
+    eligible:
+      "true": "ja"
+      "false": "nee"
+      unknown: "onbekend"
     how: "Partiduo geeft de omzet uit uw registers aan, per categorie, afgerond op de euro, als aangever voor derden met uw mandaat. U houdt de controle in uw URSSAF-account, waar u de omzet van andere activiteiten toevoegt, uw aangiften raadpleegt en het mandaat op elk moment kunt intrekken."
     mandate_ok: "Mandaat gemeld: Partiduo doet de aangifte voor u (%{name})."
     mandate_missing: "Mandaat: %{mandate}. Verkrijg en meld het om vanuit Partiduo aan te geven."
@@ -59,6 +64,8 @@ nl:
       eligibility: "In aanmerking komen ophalen"
     flash:
       estimated: "Bijdragen geraamd door de URSSAF: %{total} (%{detail})."
+      estimate_line: "%{category}: %{amount}"
+      estimate_separator: " · "
       paid: "Onlinebetaling van %{amount} gestart."
       refreshed:
         one: "Opvolging opgehaald: %{count} afwijking te behandelen."

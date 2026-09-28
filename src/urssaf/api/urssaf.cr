@@ -126,13 +126,16 @@ module Urssaf
     # --- Périodes et déclarations ----------------------------------------------------
 
     # Périodes de l'année (périodicité du module `micro`), chiffre
-    # d'affaires à déclarer, déclaration transmise, contrôles.
+    # d'affaires à déclarer, déclaration transmise, contrôles. Le chiffre
+    # d'affaires est lu dans le module `micro` avec l'acteur : il faut
+    # aussi `micro.register.read` (DECISIONS D-URS-010).
     def self.periods(actor : Actor, year : Int32, today : Time = Partiduo::Config.today) : Array(PeriodView)
       Guard.authorize!(actor, READ, module_code: MODULE_CODE)
-      Declarations.periods(year, today)
+      Declarations.periods(actor, year, today)
     end
 
-    # Cotisations calculées par l'URSSAF pour la période, sans rien déclarer.
+    # Cotisations calculées par l'URSSAF pour la période, sans rien
+    # déclarer (`micro.register.read` aussi).
     def self.estimate(actor : Actor, starts_on : Time) : Result(Array(ContributionView))
       Guard.authorize!(actor, TRANSMIT, module_code: MODULE_CODE)
       Declarations.estimate!(starts_on, actor)
@@ -141,15 +144,19 @@ module Urssaf
     # Déclare la période à l'URSSAF. Refus : période en cours, déjà
     # déclarée (ici ou à la main), mandat non notifié, compte non éligible,
     # périodicité différente de celle du module, transport ou identifiants
-    # absents ; rejet de l'URSSAF (motif conservé).
+    # absents ; rejet de l'URSSAF (motif conservé). La déclaration est
+    # notée dans le module `micro` avec l'acteur : il faut aussi
+    # `micro.register.write`, vérifié avant tout appel (DECISIONS D-URS-010).
     def self.declare(actor : Actor, starts_on : Time) : Result(PeriodView)
       Guard.authorize!(actor, TRANSMIT, module_code: MODULE_CODE)
+      Guard.authorize!(actor, Partiduo::Api::Micro::WRITE, module_code: Partiduo::Api::Micro::MODULE_CODE)
       Declarations.declare!(starts_on, actor)
     end
 
-    def self.events(actor : Actor) : Array(EventView)
+    # Historique, du plus récent au plus ancien (`limit` : les N derniers).
+    def self.events(actor : Actor, limit : Int32? = nil) : Array(EventView)
       Guard.authorize!(actor, READ, module_code: MODULE_CODE)
-      Declarations.events
+      Declarations.events(limit)
     end
 
     # Accusé de la déclaration acceptée de la période (pièce jointe du
@@ -166,21 +173,27 @@ module Urssaf
     # --- Suivi : paiements, mandats SEPA, anomalies ------------------------------------
 
     # Vue d'ensemble : cotisations dues, payées, reste dû, périodes à
-    # déclarer et à payer, anomalies ouvertes, mandat SEPA actif.
-    def self.overview(actor : Actor, today : Time = Partiduo::Config.today) : OverviewView
+    # déclarer et à payer, anomalies ouvertes, mandat SEPA actif. Les
+    # périodes à déclarer et à payer demandent `micro.register.read`
+    # (sinon vides) ; `known` : périodes déjà lues par l'appelant, reprises
+    # sans nouveau calcul.
+    def self.overview(actor : Actor, today : Time = Partiduo::Config.today,
+                      known : Array(PeriodView) = [] of PeriodView) : OverviewView
       Guard.authorize!(actor, READ, module_code: MODULE_CODE)
-      FollowUp.overview(today)
+      FollowUp.overview(actor, today, known)
     end
 
-    # Nombre d'éléments à traiter (compteur du menu, « À traiter »).
+    # Nombre d'éléments à traiter (compteur du menu, « À traiter ») :
+    # calcul léger, évalué à chaque page.
     def self.pending_count(actor : Actor, today : Time = Partiduo::Config.today) : Int64
       Guard.authorize!(actor, READ, module_code: MODULE_CODE)
-      FollowUp.pending_count(today)
+      FollowUp.pending_count(actor, today)
     end
 
-    def self.payments(actor : Actor) : Array(PaymentView)
+    # Paiements, du plus récent au plus ancien (`limit` : les N derniers).
+    def self.payments(actor : Actor, limit : Int32? = nil) : Array(PaymentView)
       Guard.authorize!(actor, READ, module_code: MODULE_CODE)
-      FollowUp.payments
+      FollowUp.payments(limit)
     end
 
     def self.anomalies(actor : Actor, open_only : Bool = true) : Array(AnomalyView)
@@ -196,8 +209,10 @@ module Urssaf
 
     # Relève auprès de l'URSSAF l'état du mandat, des déclarations, des
     # paiements et des mandats SEPA ; rend le nombre d'anomalies ouvertes.
+    # Écrit (mandat, paiements, anomalies) et appelle l'URSSAF : réservé
+    # aux titulaires de la transmission.
     def self.refresh(actor : Actor) : Result(Int32)
-      Guard.authorize!(actor, READ, module_code: MODULE_CODE)
+      Guard.authorize!(actor, TRANSMIT, module_code: MODULE_CODE)
       FollowUp.refresh!(actor)
     end
 

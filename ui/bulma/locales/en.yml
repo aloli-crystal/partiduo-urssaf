@@ -1,6 +1,11 @@
 en:
   urssaf_ui:
     title: "Online URSSAF return"
+    period_range: "%{from} – %{to}"
+    eligible:
+      "true": "yes"
+      "false": "no"
+      unknown: "unknown"
     how: "Partiduo files the turnover computed from your registers, by category, rounded to the euro, as a third-party filer with your mandate. You stay in control in your URSSAF account, where you add the turnover of other activities, review your filings and may revoke the mandate at any time."
     mandate_ok: "Mandate notified: Partiduo files for you (%{name})."
     mandate_missing: "Mandate: %{mandate}. Collect and notify it to file from Partiduo."
@@ -59,6 +64,8 @@ en:
       eligibility: "Fetch eligibility"
     flash:
       estimated: "Contributions estimated by URSSAF: %{total} (%{detail})."
+      estimate_line: "%{category}: %{amount}"
+      estimate_separator: " · "
       paid: "Online payment of %{amount} initiated."
       refreshed:
         one: "Status fetched: %{count} anomaly to handle."

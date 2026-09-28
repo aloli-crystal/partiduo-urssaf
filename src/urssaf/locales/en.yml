@@ -58,8 +58,18 @@ en:
       contributions_changed: "Contributions changed by the URSSAF"
       payment_rejected: "Payment rejected"
       mandate_revoked: "Mandate revoked from the URSSAF account"
+      paid_elsewhere: "Contributions paid outside Partiduo"
+      payment_unknown: "Payment without an URSSAF number"
     anomaly_details:
       contributions_changed: "%{before} on the receipt, %{after} according to the URSSAF"
+      paid_elsewhere: "%{urssaf} paid according to the URSSAF, %{partiduo} through Partiduo: check before paying"
+      payment_unknown: "Order %{reference} for %{amount} has no URSSAF number: check it in the URSSAF account"
+    event_details:
+      eligibility: "Eligible: %{eligible}; periodicity: %{periodicity}"
+      paid: "Declaration %{declaration}: %{amount}"
+      payment_done: "Payment %{payment}: %{amount}"
+      payment_rejected: "Payment %{payment}: %{reason}"
+      resolved: "%{code}"
     receipt:
       title: "Turnover declaration receipt — URSSAF (third-party declaration)"
       number: "Declaration number: %{number}"
@@ -78,6 +88,7 @@ en:
       not_eligible: "Account not eligible for third-party filing: %{reason}"
       periodicity_mismatch: "Different periodicity: %{urssaf} for URSSAF, %{micro} in the micro-enterprise settings."
       missing_rates: "Rates missing in Partiduo (%{rates}): URSSAF computes the contributions itself."
+      negative_turnover: "Negative turnover (%{categories}): the URSSAF only accepts zero or positive amounts; check the period's credit notes."
       no_transport: "Connection to URSSAF not plugged in yet: file on the URSSAF website, then note the return on the URSSAF screen."
       no_credentials: "Save the API credentials in the online URSSAF settings."
     errors:

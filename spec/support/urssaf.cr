@@ -7,7 +7,10 @@ module Urssaf
     alias Books = PartiduoUi::Books
 
     SYSTEM = Partiduo::Api::Actor.system
-    ALL    = [Api::READ, Api::TRANSMIT, Api::SETTINGS, Api::PAY]
+    # Droits de l'extension et du module `micro` qu'elle lit et note
+    # (DECISIONS D-URS-010).
+    MICRO = [Micro::READ, Micro::WRITE]
+    ALL   = [Api::READ, Api::TRANSMIT, Api::SETTINGS, Api::PAY] + MICRO
     # IBAN de test (clé valide, banque fictive).
     IBAN = "FR76 3000 6000 0112 3456 7890 189"
     @@admin_id = 1_i64

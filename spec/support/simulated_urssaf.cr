@@ -27,6 +27,9 @@ module Urssaf
     # déclaration.
     getter adjusted = {} of String => BigDecimal
     getter reported = {} of String => Array(String)
+    # Paiements faits hors de Partiduo (espace URSSAF), par numéro de
+    # déclaration.
+    getter external_paid = {} of String => BigDecimal
     property failure : String? = nil
     property rejection : String? = nil
     # Accusé rendu en PDF (sinon aucun document : Partiduo établit l'accusé).
@@ -103,7 +106,7 @@ module Urssaf
           declarations[reference].turnover.values.sum(BigDecimal.new(0)), total)]
       end
       paid = orders.select { |key, order| order.declaration_id == remote_id && payments[key].status == "done" }
-        .sum(BigDecimal.new(0)) { |(_, order)| order.amount }
+        .sum(BigDecimal.new(0)) { |(_, order)| order.amount } + (external_paid[remote_id]? || BigDecimal.new(0))
       DeclarationState.new(remote_id, contributions, ack.due_on, paid, reported[remote_id]? || [] of String)
     end
 

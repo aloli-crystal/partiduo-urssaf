@@ -1,6 +1,11 @@
 fr:
   urssaf_ui:
     title: "Déclaration URSSAF en ligne"
+    period_range: "%{from} – %{to}"
+    eligible:
+      "true": "oui"
+      "false": "non"
+      unknown: "inconnue"
     how: "Partiduo déclare le chiffre d'affaires calculé par vos registres, par catégorie, arrondi à l'euro, en tiers déclarant avec votre mandat. Vous gardez la main dans votre espace URSSAF, où vous ajoutez le chiffre d'affaires d'autres activités, consultez vos déclarations et pouvez révoquer le mandat à tout moment."
     mandate_ok: "Mandat notifié : Partiduo déclare pour vous (%{name})."
     mandate_missing: "Mandat : %{mandate}. Recueillez-le et notifiez-le pour déclarer depuis Partiduo."
@@ -59,6 +64,8 @@ fr:
       eligibility: "Relever l'éligibilité"
     flash:
       estimated: "Cotisations estimées par l'URSSAF : %{total} (%{detail})."
+      estimate_line: "%{category} : %{amount}"
+      estimate_separator: " · "
       paid: "Télépaiement de %{amount} initié."
       refreshed:
         one: "Suivi relevé : %{count} anomalie à traiter."

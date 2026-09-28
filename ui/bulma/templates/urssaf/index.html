@@ -2,7 +2,7 @@
 {% block title %}{{ title }}{% endblock title %}
 {% block crumbs %}{% include "ui/_crumbs.html" %}{% endblock crumbs %}
 {% block heading %}{{ title }} <span class="pd-ext">URSSAF</span>{% endblock heading %}
-{% block actions %}{% if transport %}<form method="post" action="{{ refresh_url }}">{% csrf_input %}<button class="button pd-touch" type="submit" data-urssaf-refresh>{% include "ui/_icon.html" with name="refresh-cw" %}<span>{% translate "urssaf_ui.actions.refresh" %}</span></button></form>{% endif %}{% if can_settings %}<a class="button pd-touch" href="{{ settings_url }}">{% include "ui/_icon.html" with name="settings" %}<span>{% translate "urssaf_ui.settings.title" %}</span></a>{% endif %}{% endblock actions %}
+{% block actions %}{% if transport %}{% if can_transmit %}<form method="post" action="{{ refresh_url }}">{% csrf_input %}<button class="button pd-touch" type="submit" data-urssaf-refresh>{% include "ui/_icon.html" with name="refresh-cw" %}<span>{% translate "urssaf_ui.actions.refresh" %}</span></button></form>{% endif %}{% endif %}{% if can_settings %}<a class="button pd-touch" href="{{ settings_url }}">{% include "ui/_icon.html" with name="settings" %}<span>{% translate "urssaf_ui.settings.title" %}</span></a>{% endif %}{% endblock actions %}
 {% block content %}
 <p class="pd-muted mb-3" data-urssaf-control>{% translate "urssaf_ui.how" %}{% if micro_urssaf %} <a href="{{ micro_urssaf }}">{% translate "urssaf_ui.micro_link" %}</a>{% endif %}</p>
 {% if transport %}{% if mandate_ok %}<div class="notification is-info is-light pd-alert" role="status" data-urssaf-mandate="notified">{% include "ui/_icon.html" with name="shield-check" %}<div><p>{% translate "urssaf_ui.mandate_ok" name: transport %}</p></div></div>
