@@ -1,0 +1,8 @@
+# Configuration d'Ameba pour partiduo-urssaf.
+Globs:
+  - "**/*.cr"
+  - "!lib"
+
+Excluded:
+  - lib/
+

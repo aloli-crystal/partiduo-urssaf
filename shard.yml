@@ -1,0 +1,37 @@
+name: partiduo-urssaf
+version: 0.1.0
+
+description: |
+  Extension URSSAF de Partiduo (ADR-007 D7) : tierce déclaration des
+  micro-entrepreneurs par l'API Tierce Déclaration auto-entrepreneur de
+  l'URSSAF — mandat recueilli, notifié et révocable, éligibilité et
+  périodicité, estimation des cotisations, déclaration du chiffre
+  d'affaires calculé par le module micro, suivi et accusés ; écrite contre
+  une interface abstraite et une simulation.
+
+authors:
+  - Philippe Nénert <it+claude.ai@aloli.fr>
+
+crystal: ">= 1.19.1"
+
+license: AGPL-3.0-or-later
+
+targets:
+  partiduo-urssaf-manage:
+    main: manage.cr
+
+dependencies:
+  # Le cœur : registre, événements et contrat Partiduo::Api.
+  partiduo:
+    path: ../partiduo-app
+  marten:
+    path: ../../marten
+
+development_dependencies:
+  # L'interface qui monte ui/bulma/ : nécessaire aux specs et à manage.cr ;
+  # la distribution l'apporte elle-même.
+  partiduo-ui-bulma:
+    path: ../partiduo-ui-bulma
+  ameba:
+    github: crystal-ameba/ameba
+    version: "~> 1.6"

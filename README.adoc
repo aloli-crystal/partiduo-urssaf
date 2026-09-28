@@ -1,0 +1,71 @@
+= partiduo-urssaf — tierce déclaration URSSAF des micro-entrepreneurs
+:toc: left
+:toc-title: Table des matières
+:icons: font
+
+*Partiduo* est le portage en Crystal de https://noalyss.eu[NOALYSS], logiciel
+libre de comptabilité créé et maintenu par *Dany De Bontridder*. Partiduo
+n'est pas un projet officiel NOALYSS.
+
+Ce dépôt est l'extension `URSSAF` de Partiduo (ADR-007 D7) : la déclaration
+du chiffre d'affaires d'un micro-entrepreneur à l'URSSAF par l'*API Tierce
+Déclaration auto-entrepreneur* (REST, OAuth 2 _client credentials_, accès sur
+souscription à https://portailapi.urssaf.fr). Le chiffre d'affaires est
+celui calculé par le module `micro` du cœur (ADR-007 D1), par catégorie et
+par période, sans ressaisie. NOALYSS n'a pas d'équivalent.
+
+Spécification : `../partiduo-docs/adr/ADR-007` (D1, D3, D7), ADR-003,
+ADR-005 D4, ADR-006 D3. Décisions : `../partiduo-app/DECISIONS.adoc`
+(`D-FIN-`), blocages : `../partiduo-app/BLOCAGES.adoc` (`B-FIN-`). Contrat :
+link:doc/api/urssaf.adoc[].
+
+== Fonctions
+
+[cols="1,3",options="header"]
+|===
+|Fonction |Dans URSSAF
+
+|Mandat
+|Recueilli dans Partiduo (date, acceptation explicite des termes), notifié à
+l'URSSAF, révocable ; le micro-entrepreneur garde la main dans son espace
+URSSAF.
+
+|Compte
+|Éligibilité et périodicité (mensuelle, trimestrielle) relevées à la
+notification ; une périodicité différente de celle du module bloque la
+déclaration.
+
+|Déclaration
+|Chiffre d'affaires par catégorie (ventes BIC, services BIC, BNC) arrondi à
+l'euro ; estimation des cotisations par l'URSSAF ; déclaration idempotente ;
+accusé, cotisations dues et date limite de paiement conservés ; la période
+passe « déclarée » dans le module `micro`. Rejet conservé avec son motif,
+nouvelle tentative possible ; déclaration acceptée intangible (déclencheur).
+
+|Identifiants
+|Application de l'opérateur (tiers déclarant, CSS art. L133-11), secret
+chiffré (AES-256-CBC puis HMAC-SHA-256), jamais réaffiché ; environnement
+toujours affiché.
+|===
+
+== État
+
+Écrite contre une interface abstraite (`Urssaf::Transport`) et une URSSAF
+simulée (`spec/support/simulated_urssaf.cr`). L'adaptateur réel se branche
+par `Urssaf::Transports.current =` après la souscription de l'opérateur
+(BLOCAGES B-FIN-003). Le télépaiement SEPA et l'avance immédiate du crédit
+d'impôt (API Tiers de prestation) sont des évolutions ultérieures.
+
+== Commandes
+
+[source,sh]
+----
+SKIP_MARTEN_CLI_PRECOMPILATION=1 shards install
+DATABASE_URL='postgres:///partiduo_test_<agent>?host=/tmp' crystal spec
+crystal run manage.cr -- genmigrations urssaf   # aucun écart attendu
+crystal tool format src ui spec config scripts manage.cr && bin/ameba
+----
+
+== Licence
+
+AGPL-3.0-or-later (texte intégral dans `LICENSE`).

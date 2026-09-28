@@ -1,0 +1,42 @@
+= Contrat de l'extension URSSAF (`Urssaf::Api`)
+:toc: left
+:toc-title: Table des matières
+
+Sur le modèle de `Partiduo::Api` : acteur en premier argument, contrôle
+d'accès en première ligne, vues immuables, `Result` à erreurs par champ,
+`ModuleDisabled` si l'extension est inactive.
+
+== Permissions
+
+[cols="1,3",options="header"]
+|===
+|Permission |Usage
+|`urssaf.declaration.read` |périodes, déclarations, cotisations dues, historique
+|`urssaf.declaration.transmit` |estimation, déclaration
+|`urssaf.settings.manage` |identifiants de l'API, mandat, éligibilité
+|===
+
+== Paramètres et mandat
+
+* `settings(actor) : SettingsView` — environnement, `client_id` (vide pour
+  qui ne gère pas les paramètres), `secret_stored`, `transport`, SIREN,
+  état du mandat (`none`, `signed`, `notified`, `revoked`), dates,
+  référence, éligibilité et périodicité.
+* `save_credentials`, `clear_credentials`.
+* `sign_mandate(actor, MandateInput)` — `accepted` obligatoire
+  (`urssaf.errors.mandate.accept`), date non future, SIREN du dossier
+  requis.
+* `notify_mandate(actor)` — puis éligibilité et périodicité relevées.
+* `revoke_mandate(actor)`, `check_eligibility(actor)`.
+
+== Périodes et déclarations
+
+* `periods(actor, year, today) : Array(PeriodView)` — périodes du module
+  `micro`, chiffre d'affaires par catégorie arrondi à l'euro, estimation
+  de Partiduo, déclaration transmise, contrôles (`urssaf.controls.*`).
+* `estimate(actor, starts_on) : Result(Array(ContributionView))`.
+* `declare(actor, starts_on) : Result(PeriodView)` — refus : période en
+  cours, déjà déclarée ou transmise, mandat non notifié, compte non
+  éligible, périodicité différente, transport ou identifiants absents ;
+  rejet de l'URSSAF conservé (`rejected`, motif).
+* `events(actor) : Array(EventView)`.

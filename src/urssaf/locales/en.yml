@@ -1,0 +1,66 @@
+en:
+  urssaf:
+    module:
+      name: "URSSAF (third-party self-employed filing)"
+    permissions:
+      declaration:
+        read: "View online URSSAF returns and contributions due"
+        transmit: "Estimate and file turnover with URSSAF"
+      settings:
+        manage: "Configure URSSAF (API credentials, mandate)"
+    menu:
+      declarations: "Online URSSAF return"
+      settings: "Online URSSAF"
+    statuses:
+      accepted: "Accepted"
+      rejected: "Rejected"
+    mandate_statuses:
+      none: "No mandate"
+      signed: "Collected, to be notified"
+      notified: "Notified to URSSAF"
+      revoked: "Revoked"
+    environments:
+      sandbox: "Sandbox"
+      production: "Production"
+    periodicities:
+      monthly: "Monthly"
+      quarterly: "Quarterly"
+    actions:
+      signed: "Mandate collected"
+      notified: "Mandate notified"
+      revoked: "Mandate revoked"
+      eligibility: "Eligibility fetched"
+      estimated: "Estimate"
+      declared: "Return accepted"
+      rejected: "Return rejected"
+      error: "Error"
+    controls:
+      already_transmitted: "Filed online (no. %{reference})."
+      already_declared: "Period already noted as filed."
+      period_open: "The period is not over."
+      mandate_missing: "The mandate is not notified to URSSAF."
+      not_eligible: "Account not eligible for third-party filing: %{reason}"
+      periodicity_mismatch: "Different periodicity: %{urssaf} for URSSAF, %{micro} in the micro-enterprise settings."
+      missing_rates: "Rates missing in Partiduo (%{rates}): URSSAF computes the contributions itself."
+      no_transport: "Connection to URSSAF not plugged in yet: file on the URSSAF website, then note the return on the URSSAF screen."
+      no_credentials: "Save the API credentials in the online URSSAF settings."
+    errors:
+      period: "Unknown return period."
+      credentials:
+        client_id: "Enter the application ID (client_id)."
+        env: "Unknown environment."
+        unreadable: "Saved secret unreadable: enter it again."
+        client_secret: "Enter the application secret (client_secret)."
+      mandate:
+        accept: "The self-employed person must accept the terms of the mandate."
+        future: "The signature date cannot be later than today."
+        active: "A mandate is already notified: revoke it first."
+        siren: "Enter the company SIREN before collecting the mandate."
+        not_signed: "Collect the mandate first."
+        none: "No mandate to revoke."
+      transport:
+        credentials: "URSSAF refuses the application credentials."
+        unavailable: "URSSAF does not answer; try again later."
+        rejected: "URSSAF rejects the return: %{reason}"
+        mandate_unknown: "URSSAF does not know this mandate."
+        account_unknown: "URSSAF knows no self-employed account for this SIREN."

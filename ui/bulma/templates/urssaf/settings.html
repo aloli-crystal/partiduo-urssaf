@@ -1,0 +1,48 @@
+{# SPDX-License-Identifier: AGPL-3.0-or-later. Paramètres de l'URSSAF en ligne (ADR-007 D7) : mandat du micro-entrepreneur (recueilli avec acceptation explicite, notifié à l'URSSAF, révocable), éligibilité et périodicité relevées ; identifiants de l'opérateur, tiers déclarant (secret chiffré, jamais réaffiché), environnement toujours affiché. #}{% extend "ui/base.html" %}
+{% block title %}{{ title }}{% endblock title %}
+{% block crumbs %}{% include "ui/_crumbs.html" %}{% endblock crumbs %}
+{% block heading %}{{ title }} <span class="pd-ext">URSSAF</span>{% endblock heading %}
+{% block content %}
+<section class="pd-panel" aria-labelledby="pd-urssaf-mandate">
+  <header><h2 id="pd-urssaf-mandate">{% translate "urssaf_ui.settings.mandate" %}</h2><span class="tag is-light" data-urssaf-mandate-status="{{ mandate.status }}">{{ mandate.label }}</span></header>
+  <div class="pd-body">
+    <dl class="pd-dl">
+      <dt>SIREN</dt><dd class="pd-mono">{% if settings.siren %}{{ settings.siren }}{% else %}—{% endif %}</dd>
+      {% if mandate.signed_on %}<dt>{% translate "urssaf_ui.settings.signed_on" %}</dt><dd>{{ mandate.signed_on }}</dd>{% endif %}
+      {% if mandate.ref %}<dt>{% translate "urssaf_ui.settings.mandate_ref" %}</dt><dd class="pd-mono">{{ mandate.ref }}</dd>{% endif %}
+      {% if mandate.notified_at %}<dt>{% translate "urssaf_ui.settings.notified_at" %}</dt><dd>{{ mandate.notified_at }}</dd>{% endif %}
+      {% if mandate.revoked_at %}<dt>{% translate "urssaf_ui.settings.revoked_at" %}</dt><dd>{{ mandate.revoked_at }}</dd>{% endif %}
+      {% if mandate.eligible %}<dt>{% translate "urssaf_ui.settings.eligible" %}</dt><dd>{{ mandate.eligible }}{% if mandate.reason %} — {{ mandate.reason }}{% endif %}</dd>{% endif %}
+      {% if mandate.periodicity %}<dt>{% translate "urssaf_ui.settings.periodicity" %}</dt><dd>{{ mandate.periodicity }}</dd>{% endif %}
+    </dl>
+    {% if mandate.can_sign %}<form method="post" action="{% url 'urssaf:sign_mandate' %}" class="mt-3" data-urssaf-sign>{% csrf_input %}
+      <p class="help mb-2">{% translate "urssaf_ui.settings.mandate_terms" %}</p>
+      <div class="field"><label class="label" for="pd-urssaf-signed-on">{% translate "urssaf_ui.settings.signed_on" %}</label><input class="input pd-mono" type="date" id="pd-urssaf-signed-on" name="signed_on" value="{{ mandate.today }}"></div>
+      <div class="field"><label class="checkbox"><input type="checkbox" name="accepted" value="1"> {% translate "urssaf_ui.settings.accept" %}</label></div>
+      <button class="button is-primary pd-touch" type="submit">{% translate "urssaf_ui.actions.sign" %}</button>
+    </form>{% endif %}
+    <div class="buttons mt-3">
+      {% if mandate.can_notify %}<form method="post" action="{% url 'urssaf:notify_mandate' %}">{% csrf_input %}<button class="button is-primary pd-touch" type="submit" data-urssaf-notify>{% include "ui/_icon.html" with name="send" %}<span>{% translate "urssaf_ui.actions.notify" %}</span></button></form>{% endif %}
+      {% if mandate.can_revoke %}<form method="post" action="{% url 'urssaf:revoke_mandate' %}">{% csrf_input %}<button class="button is-danger is-light pd-touch" type="submit">{% translate "urssaf_ui.actions.revoke" %}</button></form>{% endif %}
+      {% if settings.transport %}<form method="post" action="{% url 'urssaf:eligibility' %}">{% csrf_input %}<button class="button pd-touch" type="submit">{% include "ui/_icon.html" with name="refresh-cw" %}<span>{% translate "urssaf_ui.actions.eligibility" %}</span></button></form>{% endif %}
+    </div>
+  </div>
+</section>
+<section class="pd-panel" aria-labelledby="pd-urssaf-api">
+  <header><h2 id="pd-urssaf-api">{% translate "urssaf_ui.settings.api" %}</h2><span class="tag {% if settings.env_code == 'production' %}is-success{% else %}is-warning{% endif %}" data-urssaf-env="{{ settings.env_code }}">{{ settings.env }}</span></header>
+  <div class="pd-body">
+    <p class="help mb-3">{% if settings.transport %}{% translate "urssaf_ui.settings.transport" name: settings.transport %}{% else %}{% translate "urssaf_ui.transport_unavailable" %}{% endif %}</p>
+    {% if settings.checked_at %}<p class="mb-3">{% translate "urssaf_ui.settings.checked_at" %} {{ settings.checked_at }}</p>{% endif %}
+    <form method="post" action="" novalidate autocomplete="off" data-urssaf-credentials>{% csrf_input %}
+      <div class="field"><label class="label" for="pd-urssaf-env">{% translate "urssaf_ui.settings.env" %}</label><div class="select"><select id="pd-urssaf-env" name="env">{% for option in environments %}<option value="{{ option.value }}"{% if option.selected %} selected{% endif %}>{{ option.label }}</option>{% endfor %}</select></div></div>
+      <div class="field"><label class="label" for="pd-urssaf-client-id">{% translate "urssaf_ui.settings.client_id" %}</label><input class="input pd-mono" id="pd-urssaf-client-id" name="client_id" value="{{ settings.client_id }}"{% if errors.client_id %} aria-invalid="true"{% endif %}>
+        {% if errors.client_id %}<p class="help is-danger">{{ errors.client_id }}</p>{% endif %}</div>
+      <div class="field"><label class="label" for="pd-urssaf-client-secret">{% translate "urssaf_ui.settings.client_secret" %}</label><input class="input" type="password" id="pd-urssaf-client-secret" name="client_secret" value="" autocomplete="new-password" placeholder="{% if settings.secret_stored %}{% translate 'urssaf_ui.settings.stored' %}{% endif %}"{% if errors.client_secret %} aria-invalid="true"{% endif %}>
+        {% if errors.client_secret %}<p class="help is-danger">{{ errors.client_secret }}</p>{% endif %}</div>
+      <p class="help mb-3">{% translate "urssaf_ui.settings.help" %}</p>
+      <button class="button is-primary pd-touch" type="submit">{% translate "ui.forms.save" %}</button>
+    </form>
+    {% if settings.secret_stored %}<form method="post" action="{% url 'urssaf:clear_credentials' %}" class="mt-3">{% csrf_input %}<button class="button is-danger is-light pd-touch" type="submit">{% translate "urssaf_ui.settings.clear" %}</button></form>{% endif %}
+  </div>
+</section>
+{% endblock content %}

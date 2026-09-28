@@ -1,0 +1,34 @@
+{# SPDX-License-Identifier: AGPL-3.0-or-later. Écran « Déclaration URSSAF en ligne » (ADR-007 D7) : état du mandat, périodes de l'année (périodicité du module micro), chiffre d'affaires arrondi à l'euro, cotisations estimées par Partiduo et dues selon l'URSSAF, estimation et déclaration, historique. Sans connexion : renvoi vers l'écran URSSAF du module (déclaration notée à la main). #}{% extend "ui/base.html" %}
+{% block title %}{{ title }}{% endblock title %}
+{% block crumbs %}{% include "ui/_crumbs.html" %}{% endblock crumbs %}
+{% block heading %}{{ title }} <span class="pd-ext">URSSAF</span>{% endblock heading %}
+{% block content %}
+{% if transport %}{% if mandate_ok %}<div class="notification is-info is-light pd-alert" role="status" data-urssaf-mandate="notified">{% include "ui/_icon.html" with name="shield-check" %}<div><p>{% translate "urssaf_ui.mandate_ok" name: transport %}</p></div></div>
+{% else %}<div class="notification is-warning is-light pd-alert" role="status" data-urssaf-mandate="missing">{% include "ui/_icon.html" with name="triangle-alert" %}<div><p>{% translate "urssaf_ui.mandate_missing" mandate: mandate %}</p>{% if can_settings %}<p class="mt-2"><a href="{{ settings_url }}">{% translate "urssaf_ui.settings.title" %}</a></p>{% endif %}</div></div>{% endif %}
+{% else %}<div class="notification is-warning is-light pd-alert" role="status" data-urssaf-transport="unavailable">{% include "ui/_icon.html" with name="triangle-alert" %}<div><p>{% translate "urssaf_ui.transport_unavailable" %}</p></div></div>{% endif %}
+<section class="pd-panel" aria-labelledby="pd-urssaf-periods">
+  <header><h2 id="pd-urssaf-periods">{% translate "urssaf_ui.periods" year: year %}</h2><span class="buttons"><a class="button is-small" href="{{ previous_url }}">‹</a><a class="button is-small" href="{{ next_url }}">›</a></span></header>
+  {% if periods %}<div class="pd-scroll"><table class="table is-fullwidth" data-urssaf-periods>
+    <caption class="is-sr-only">{% translate "urssaf_ui.periods" year: year %}</caption>
+    <thead><tr><th scope="col">{% translate "urssaf_ui.columns.period" %}</th><th scope="col" class="pd-hide-s">{% translate "urssaf_ui.columns.due_on" %}</th><th scope="col" class="has-text-right">{% translate "urssaf_ui.columns.turnover" %}</th><th scope="col" class="has-text-right pd-hide-s">{% translate "urssaf_ui.columns.estimated" %}</th><th scope="col">{% translate "urssaf_ui.columns.status" %}</th><th scope="col"><span class="is-sr-only">{% translate "urssaf_ui.columns.actions" %}</span></th></tr></thead>
+    <tbody>{% for period in periods %}<tr data-urssaf-period="{{ period.starts_on }}">
+      <td>{{ period.period }}</td>
+      <td class="pd-hide-s">{{ period.due_on }}</td>
+      <td class="has-text-right pd-mono">{{ period.turnover }}</td>
+      <td class="has-text-right pd-mono pd-hide-s">{{ period.estimated }}</td>
+      <td>{% if period.status %}<span class="tag {% if period.status == 'accepted' %}is-success{% else %}is-danger{% endif %} is-light" data-urssaf-status="{{ period.status }}">{{ period.status_label }}</span>{% if period.remote_id %} <span class="pd-mono is-size-7">{{ period.remote_id }}</span>{% endif %}{% if period.due %}<br><span class="is-size-7">{% translate "urssaf_ui.contributions_due" amount: period.due %}{% if period.payment_due %} · {% translate "urssaf_ui.payment_due" date: period.payment_due %}{% endif %}</span>{% endif %}{% if period.reason %}<br><span class="is-size-7 has-text-danger">{{ period.reason }}</span>{% endif %}{% else %}<span class="pd-muted">{{ period.micro_status }}</span>{% endif %}
+        {% if period.controls %}<br><span class="is-size-7 pd-muted">{{ period.controls }}</span>{% endif %}</td>
+      <td>{% if can_transmit %}{% if period.ready %}<div class="buttons"><form method="post" action="{{ estimate_url }}">{% csrf_input %}<input type="hidden" name="starts_on" value="{{ period.starts_on }}"><button class="button is-small pd-touch" type="submit">{% translate "urssaf_ui.actions.estimate" %}</button></form>
+        <form method="post" action="{{ declare_url }}">{% csrf_input %}<input type="hidden" name="starts_on" value="{{ period.starts_on }}"><button class="button is-small is-primary pd-touch" type="submit" data-urssaf-declare>{% include "ui/_icon.html" with name="send" %}<span>{% translate "urssaf_ui.actions.declare" %}</span></button></form></div>{% endif %}{% endif %}</td>
+    </tr>{% endfor %}</tbody>
+  </table></div>
+  {% else %}<div class="pd-body"><p class="pd-muted">{% translate "urssaf_ui.no_period" %}</p></div>{% endif %}
+</section>
+{% if events %}<section class="pd-panel" aria-labelledby="pd-urssaf-events">
+  <header><h2 id="pd-urssaf-events">{% translate "urssaf_ui.history" %}</h2></header>
+  <div class="pd-scroll"><table class="table is-fullwidth"><caption class="is-sr-only">{% translate "urssaf_ui.history" %}</caption>
+    <tbody>{% for event in events %}<tr><td>{{ event.at }}</td><td>{{ event.action }}</td><td>{% if event.detail %}{{ event.detail }}{% endif %}</td></tr>{% endfor %}</tbody>
+  </table></div>
+</section>{% endif %}
+<p class="help">{% translate "urssaf_ui.how" %}</p>
+{% endblock content %}

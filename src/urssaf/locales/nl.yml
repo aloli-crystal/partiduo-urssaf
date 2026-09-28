@@ -1,0 +1,66 @@
+nl:
+  urssaf:
+    module:
+      name: "URSSAF (aangifte door derden voor zelfstandigen)"
+    permissions:
+      declaration:
+        read: "Online URSSAF-aangiften en verschuldigde bijdragen bekijken"
+        transmit: "Omzet ramen en aangeven bij de URSSAF"
+      settings:
+        manage: "URSSAF instellen (API-gegevens, mandaat)"
+    menu:
+      declarations: "Online URSSAF-aangifte"
+      settings: "URSSAF online"
+    statuses:
+      accepted: "Aanvaard"
+      rejected: "Geweigerd"
+    mandate_statuses:
+      none: "Geen mandaat"
+      signed: "Verkregen, te melden"
+      notified: "Gemeld aan de URSSAF"
+      revoked: "Ingetrokken"
+    environments:
+      sandbox: "Testomgeving"
+      production: "Productie"
+    periodicities:
+      monthly: "Maandelijks"
+      quarterly: "Driemaandelijks"
+    actions:
+      signed: "Mandaat verkregen"
+      notified: "Mandaat gemeld"
+      revoked: "Mandaat ingetrokken"
+      eligibility: "In aanmerking komen opgehaald"
+      estimated: "Raming"
+      declared: "Aangifte aanvaard"
+      rejected: "Aangifte geweigerd"
+      error: "Fout"
+    controls:
+      already_transmitted: "Online aangegeven (nr. %{reference})."
+      already_declared: "Periode al als aangegeven genoteerd."
+      period_open: "De periode is nog niet afgelopen."
+      mandate_missing: "Het mandaat is niet gemeld aan de URSSAF."
+      not_eligible: "Account komt niet in aanmerking voor aangifte door derden: %{reason}"
+      periodicity_mismatch: "Andere periodiciteit: %{urssaf} bij de URSSAF, %{micro} in de instellingen van de micro-onderneming."
+      missing_rates: "Tarieven ontbreken in Partiduo (%{rates}): de URSSAF berekent de bijdragen zelf."
+      no_transport: "Verbinding met de URSSAF nog niet aangesloten: doe de aangifte op de website van de URSSAF en noteer ze daarna in het URSSAF-scherm."
+      no_credentials: "Sla de API-gegevens op in de instellingen van URSSAF online."
+    errors:
+      period: "Onbekende aangifteperiode."
+      credentials:
+        client_id: "Vul de identificatie van de toepassing in (client_id)."
+        env: "Onbekende omgeving."
+        unreadable: "Opgeslagen geheim onleesbaar: vul het opnieuw in."
+        client_secret: "Vul het geheim van de toepassing in (client_secret)."
+      mandate:
+        accept: "De zelfstandige moet de voorwaarden van het mandaat aanvaarden."
+        future: "De datum van ondertekening mag niet na vandaag liggen."
+        active: "Er is al een mandaat gemeld: trek het eerst in."
+        siren: "Vul het SIREN-nummer van de onderneming in vóór het mandaat."
+        not_signed: "Verkrijg eerst het mandaat."
+        none: "Geen mandaat om in te trekken."
+      transport:
+        credentials: "De URSSAF weigert de gegevens van de toepassing."
+        unavailable: "De URSSAF antwoordt niet; probeer later opnieuw."
+        rejected: "De URSSAF weigert de aangifte: %{reason}"
+        mandate_unknown: "De URSSAF kent dit mandaat niet."
+        account_unknown: "De URSSAF kent geen zelfstandigenaccount voor dit SIREN-nummer."

@@ -1,0 +1,66 @@
+fr:
+  urssaf:
+    module:
+      name: "URSSAF (tierce déclaration auto-entrepreneur)"
+    permissions:
+      declaration:
+        read: "Voir les déclarations URSSAF en ligne et les cotisations dues"
+        transmit: "Estimer et déclarer le chiffre d'affaires à l'URSSAF"
+      settings:
+        manage: "Paramétrer l'URSSAF (identifiants de l'API, mandat)"
+    menu:
+      declarations: "Déclaration URSSAF en ligne"
+      settings: "URSSAF en ligne"
+    statuses:
+      accepted: "Acceptée"
+      rejected: "Rejetée"
+    mandate_statuses:
+      none: "Aucun mandat"
+      signed: "Recueilli, à notifier"
+      notified: "Notifié à l'URSSAF"
+      revoked: "Révoqué"
+    environments:
+      sandbox: "Bac à sable"
+      production: "Production"
+    periodicities:
+      monthly: "Mensuelle"
+      quarterly: "Trimestrielle"
+    actions:
+      signed: "Mandat recueilli"
+      notified: "Mandat notifié"
+      revoked: "Mandat révoqué"
+      eligibility: "Éligibilité relevée"
+      estimated: "Estimation"
+      declared: "Déclaration acceptée"
+      rejected: "Déclaration rejetée"
+      error: "Erreur"
+    controls:
+      already_transmitted: "Déclarée en ligne (n° %{reference})."
+      already_declared: "Période déjà notée comme déclarée."
+      period_open: "La période n'est pas terminée."
+      mandate_missing: "Le mandat n'est pas notifié à l'URSSAF."
+      not_eligible: "Compte non éligible à la tierce déclaration : %{reason}"
+      periodicity_mismatch: "Périodicité différente : %{urssaf} pour l'URSSAF, %{micro} dans les paramètres de la micro-entreprise."
+      missing_rates: "Taux absents dans Partiduo (%{rates}) : l'URSSAF calcule elle-même les cotisations."
+      no_transport: "Connexion à l'URSSAF pas encore branchée : déclarez sur le site de l'URSSAF, puis notez la déclaration dans l'écran URSSAF."
+      no_credentials: "Enregistrez les identifiants de l'API dans les paramètres de l'URSSAF en ligne."
+    errors:
+      period: "Période de déclaration inconnue."
+      credentials:
+        client_id: "Indiquez l'identifiant de l'application (client_id)."
+        env: "Environnement inconnu."
+        unreadable: "Secret enregistré illisible : saisissez-le de nouveau."
+        client_secret: "Indiquez le secret de l'application (client_secret)."
+      mandate:
+        accept: "Le micro-entrepreneur doit accepter les termes du mandat."
+        future: "La date de signature ne peut dépasser la date du jour."
+        active: "Un mandat est déjà notifié : révoquez-le d'abord."
+        siren: "Indiquez le SIREN de l'entreprise dans la société avant de recueillir le mandat."
+        not_signed: "Recueillez d'abord le mandat."
+        none: "Aucun mandat à révoquer."
+      transport:
+        credentials: "L'URSSAF refuse les identifiants de l'application."
+        unavailable: "L'URSSAF ne répond pas ; réessayez plus tard."
+        rejected: "L'URSSAF rejette la déclaration : %{reason}"
+        mandate_unknown: "L'URSSAF ne connaît pas ce mandat."
+        account_unknown: "L'URSSAF ne connaît aucun compte auto-entrepreneur pour ce SIREN."
