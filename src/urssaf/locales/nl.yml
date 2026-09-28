@@ -8,6 +8,8 @@ nl:
         transmit: "Omzet ramen en aangeven bij de URSSAF"
       settings:
         manage: "URSSAF instellen (API-gegevens, mandaat)"
+      payment:
+        transmit: "URSSAF-bijdragen betalen via SEPA-domiciliëring en SEPA-mandaten beheren"
     menu:
       declarations: "Online URSSAF-aangifte"
       settings: "URSSAF online"
@@ -34,6 +36,40 @@ nl:
       declared: "Aangifte aanvaard"
       rejected: "Aangifte geweigerd"
       error: "Fout"
+      paid: "Onlinebetaling gestart"
+      payment_done: "Betaling uitgevoerd"
+      payment_rejected: "Betaling geweigerd"
+      sepa_registered: "SEPA-mandaat geregistreerd"
+      sepa_revoked: "SEPA-mandaat ingetrokken"
+      refreshed: "Opvolging opgehaald bij de URSSAF"
+      anomaly: "Afwijking"
+      resolved: "Afwijking behandeld"
+      remote_revoked: "Mandaat ingetrokken vanuit de URSSAF-account"
+    payment_statuses:
+      initiated: "Gestart"
+      done: "Uitgevoerd"
+      rejected: "Geweigerd"
+    sepa_statuses:
+      active: "Actief"
+      revoked: "Ingetrokken"
+    anomalies:
+      rejected: "Aangifte geweigerd"
+      urssaf: "Afwijking gemeld door de URSSAF"
+      contributions_changed: "Bijdragen gewijzigd door de URSSAF"
+      payment_rejected: "Betaling geweigerd"
+      mandate_revoked: "Mandaat ingetrokken vanuit de URSSAF-account"
+    anomaly_details:
+      contributions_changed: "%{before} op het ontvangstbewijs, %{after} volgens de URSSAF"
+    receipt:
+      title: "Ontvangstbewijs van de omzetaangifte — URSSAF (aangifte door derden)"
+      number: "Nummer van de aangifte: %{number}"
+      siren: "SIREN: %{siren}"
+      period: "Periode: van %{starts_on} tot %{ends_on}"
+      turnover: "Aangegeven omzet, %{category}: %{amount} €"
+      contribution: "Verschuldigde bijdragen, %{category}: %{amount} €"
+      total: "Totaal verschuldigde bijdragen: %{amount} €"
+      due_on: "Uiterste betaaldatum: %{date}"
+      transmitted_at: "Verzonden op: %{at}"
     controls:
       already_transmitted: "Online aangegeven (nr. %{reference})."
       already_declared: "Periode al als aangegeven genoteerd."
@@ -45,6 +81,17 @@ nl:
       no_transport: "Verbinding met de URSSAF nog niet aangesloten: doe de aangifte op de website van de URSSAF en noteer ze daarna in het URSSAF-scherm."
       no_credentials: "Sla de API-gegevens op in de instellingen van URSSAF online."
     errors:
+      anomaly: "Onbekende of al behandelde afwijking."
+      payment:
+        not_declared: "Geen aanvaarde aangifte voor deze periode."
+        nothing_due: "Er valt niets meer te betalen voor deze periode."
+        no_sepa: "Registreer eerst een SEPA-domiciliëringsmandaat."
+      sepa:
+        iban: "Ongeldig IBAN."
+        bic: "Ongeldige BIC (8 of 11 tekens)."
+        holder: "Vul de rekeninghouder in."
+        accept: "De zelfstandige moet de domiciliëring toestaan."
+        unknown: "Onbekend of al ingetrokken SEPA-mandaat."
       period: "Onbekende aangifteperiode."
       credentials:
         client_id: "Vul de identificatie van de toepassing in (client_id)."
@@ -64,3 +111,4 @@ nl:
         rejected: "De URSSAF weigert de aangifte: %{reason}"
         mandate_unknown: "De URSSAF kent dit mandaat niet."
         account_unknown: "De URSSAF kent geen zelfstandigenaccount voor dit SIREN-nummer."
+        sepa_refused: "De URSSAF weigert het SEPA-mandaat: %{reason}"

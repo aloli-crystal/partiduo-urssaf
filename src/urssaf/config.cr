@@ -14,6 +14,19 @@ module Urssaf
 
     ENVIRONMENTS = %w[sandbox production]
 
+    # Télépaiement SEPA : initié, effectué, rejeté (motif).
+    PAYMENT_STATUSES = %w[initiated done rejected]
+
+    # Mandat de prélèvement SEPA.
+    SEPA_STATUSES = %w[active revoked]
+
+    # Anomalies du suivi.
+    ANOMALY_CODES = %w[rejected urssaf contributions_changed payment_rejected mandate_revoked]
+
+    # Actions de l'historique.
+    EVENT_ACTIONS = %w[signed notified revoked eligibility estimated declared rejected error paid payment_done
+      payment_rejected sepa_registered sepa_revoked refreshed anomaly resolved remote_revoked]
+
     # Catégories de chiffre d'affaires du module `micro` déclarées.
     CATEGORIES = %w[sale_bic service_bic bnc]
   end

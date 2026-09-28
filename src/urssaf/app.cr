@@ -3,6 +3,8 @@
 require "./manifest"
 require "./config"
 require "./secrets"
+require "./iban"
+require "./oauth2"
 require "./transport"
 require "./models/**"
 require "./services/**"
@@ -19,7 +21,7 @@ require "./api/**"
 # https://portailapi.urssaf.fr après souscription (démarche de l'opérateur,
 # tiers déclarant, CSS art. L133-11).
 module Urssaf
-  VERSION = "0.1.0"
+  VERSION = "0.2.0"
 
   # Code du registre (ADR-003 D2) : `urssaf` dans `PARTIDUO_MODULES`.
   CODE = "URSSAF"

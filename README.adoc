@@ -42,6 +42,24 @@ accusé, cotisations dues et date limite de paiement conservés ; la période
 passe « déclarée » dans le module `micro`. Rejet conservé avec son motif,
 nouvelle tentative possible ; déclaration acceptée intangible (déclencheur).
 
+|Paiement
+|Mandat de prélèvement SEPA enregistré à l'URSSAF (autorisation explicite,
+IBAN contrôlé, transmis, jamais conservé en clair) ; télépaiement du reste
+dû d'une déclaration acceptée.
+
+|Suivi
+|Échéances (périodes à déclarer), déclarations, cotisations dues, payées et
+reste dû, paiements ; relevé auprès de l'URSSAF : mandat révoqué depuis
+l'espace URSSAF, régularisations, anomalies signalées, paiements effectués
+ou rejetés ; anomalies à noter traitées ; accusés conservés en pièce jointe
+et téléchargeables.
+
+|Interface
+|Écran « URSSAF en ligne » dans le menu du mode simplifié de la
+micro-entreprise (après l'aide URSSAF du module), compteur et « À
+traiter » ; rappel que le micro-entrepreneur garde la main dans son espace
+URSSAF.
+
 |Identifiants
 |Application de l'opérateur (tiers déclarant, CSS art. L133-11), secret
 chiffré (AES-256-CBC puis HMAC-SHA-256), jamais réaffiché ; environnement
@@ -50,11 +68,14 @@ toujours affiché.
 
 == État
 
-Écrite contre une interface abstraite (`Urssaf::Transport`) et une URSSAF
-simulée (`spec/support/simulated_urssaf.cr`). L'adaptateur réel se branche
-par `Urssaf::Transports.current =` après la souscription de l'opérateur
-(BLOCAGES B-FIN-003). Le télépaiement SEPA et l'avance immédiate du crédit
-d'impôt (API Tiers de prestation) sont des évolutions ultérieures.
+Écrite contre une interface abstraite (`Urssaf::Transport`, les six
+services du catalogue `td-ae` et le suivi) et une URSSAF simulée
+(`spec/support/simulated_urssaf.cr`). Le jeton OAuth 2 _client credentials_
+est prêt (`Urssaf::OAuth2`) ; l'adaptateur réel se branchera par
+`Urssaf::Transports.current =` après la souscription de l'opérateur et la
+remise de la documentation technique (BLOCAGES B-FIN-003, B-URS-001).
+L'avance immédiate du crédit d'impôt (API Tiers de prestation) reste une
+évolution ultérieure. Décisions : D-FIN-006, D-URS-001 à D-URS-006.
 
 == Commandes
 

@@ -249,7 +249,8 @@ module Urssaf
       end
       # L'accusé est gardé d'abord : l'URSSAF a accepté, même si la note
       # dans le module `micro` échoue ensuite (déjà notée à la main).
-      save_filing(filing, declaration, sent, ack, "", actor)
+      receipt_id = store_receipt(ack, sent, actor)
+      save_filing(filing, declaration, sent, ack, "", actor, receipt_id)
       log("declared", ack.remote_id, actor)
       marked = Micro.mark_declared(SYSTEM, Micro::DeclarationInput.new(declaration.starts_on, Partiduo::Config.today,
         ack.remote_id[0, Math.min(ack.remote_id.size, 100)]))
@@ -258,8 +259,42 @@ module Urssaf
       view ? result.success(view) : result.failure(error("starts_on", "urssaf.errors.period"))
     end
 
+    # Accusé conservé en pièce jointe du socle : le document rendu par
+    # l'URSSAF, sinon un accusé texte établi d'après sa réponse. Un refus
+    # du socle n'empêche pas de garder la déclaration (journalisé).
+    def self.store_receipt(ack : Acknowledgement, sent : Submission, actor : Partiduo::Api::Actor) : Int64?
+      receipt = ack.receipt || text_receipt(ack, sent)
+      input = Partiduo::Api::Core::AttachmentInput.new(receipt.filename, receipt.content_type, IO::Memory.new(receipt.content))
+      stored = Partiduo::Api::Core.store_attachment(SYSTEM, input)
+      if stored.failure?
+        log("error", stored.errors.map(&.key).join(", "), actor)
+        return
+      end
+      stored.value!.id
+    end
+
+    def self.text_receipt(ack : Acknowledgement, sent : Submission) : Receipt
+      lines = [
+        I18n.t("urssaf.receipt.title"),
+        I18n.t("urssaf.receipt.number", number: ack.remote_id),
+        I18n.t("urssaf.receipt.siren", siren: sent.siren),
+        I18n.t("urssaf.receipt.period", starts_on: sent.starts_on.to_s("%Y-%m-%d"), ends_on: sent.ends_on.to_s("%Y-%m-%d")),
+      ]
+      sent.turnover.each do |category, amount|
+        lines << I18n.t("urssaf.receipt.turnover", category: I18n.t("micro.categories.#{category}"), amount: amount.to_s)
+      end
+      ack.contributions.each do |item|
+        lines << I18n.t("urssaf.receipt.contribution", category: I18n.t("micro.categories.#{item.category}"), amount: item.amount.to_s)
+      end
+      lines << I18n.t("urssaf.receipt.total", amount: ack.total.to_s)
+      ack.due_on.try { |day| lines << I18n.t("urssaf.receipt.due_on", date: day.to_s("%Y-%m-%d")) }
+      lines << I18n.t("urssaf.receipt.transmitted_at", at: Time.utc.to_s("%Y-%m-%dT%H:%M:%SZ"))
+      Receipt.new("accuse-urssaf-#{ack.remote_id.gsub(/[^A-Za-z0-9_-]/, "_")}.txt", "text/plain", (lines.join("\n") + "\n").to_slice)
+    end
+
     private def self.save_filing(filing : Filing?, declaration : Micro::DeclarationView, sent : Submission,
-                                 ack : Acknowledgement?, reason : String, actor : Partiduo::Api::Actor) : Nil
+                                 ack : Acknowledgement?, reason : String, actor : Partiduo::Api::Actor,
+                                 receipt_id : Int64? = nil) : Nil
       row = filing || Filing.new(starts_on: declaration.starts_on)
       row.ends_on = declaration.ends_on
       row.turnover = sent.turnover.transform_values(&.to_s).to_json
@@ -273,8 +308,11 @@ module Urssaf
       row.reason = reason
       row.transmitted_at = Time.utc
       row.transmitted_by_id = actor.user_id
+      row.receipt_attachment_id = receipt_id
       row.save!
-      log("rejected", reason, actor) unless ack
+      return if ack
+      log("rejected", reason, actor)
+      FollowUp.anomaly("rejected", reason, row.id)
     end
 
     # --- Vues et historique ------------------------------------------------------------
@@ -284,9 +322,11 @@ module Urssaf
       contributions = Array(Hash(String, String)).from_json(row.contributions.to_s).map do |item|
         ApiT::ContributionView.new(item["category"], BigDecimal.new(item["turnover"]), BigDecimal.new(item["amount"]))
       end
+      payments = FollowUp.payments_of(row)
       ApiT::FilingView.new(status: row.status.to_s, remote_id: row.remote_id.to_s, turnover: turnover,
         contributions: contributions, contributions_total: row.contributions_total || BigDecimal.new(0),
-        payment_due_on: row.payment_due_on, reason: row.reason.to_s, transmitted_at: row.transmitted_at!)
+        payment_due_on: row.payment_due_on, reason: row.reason.to_s, transmitted_at: row.transmitted_at!,
+        receipt_attachment_id: row.receipt_attachment_id.try(&.to_i64), payments: payments)
     end
 
     def self.log(action : String, detail : String, actor : Partiduo::Api::Actor) : Nil

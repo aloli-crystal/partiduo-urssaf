@@ -4,7 +4,8 @@ module Urssaf
   # Déclaration transmise à l'URSSAF pour une période (une ligne par
   # période, `starts_on`) : chiffre d'affaires déclaré par catégorie (JSON,
   # montants en chaîne décimale), numéro de la déclaration, cotisations dues
-  # (JSON) et leur total, date limite de paiement ; `rejected` avec motif.
+  # (JSON) et leur total, date limite de paiement, accusé en pièce jointe
+  # du socle ; `rejected` avec motif.
   # Intangible une fois acceptée (déclencheur). Interne.
   class Filing < Marten::Model
     field :id, :big_int, primary_key: true, auto: true
@@ -19,6 +20,7 @@ module Urssaf
     field :reason, :text, blank: true, default: ""
     field :transmitted_at, :date_time
     field :transmitted_by_id, :big_int, blank: true, null: true
+    field :receipt_attachment_id, :big_int, blank: true, null: true
 
     with_timestamp_fields
   end

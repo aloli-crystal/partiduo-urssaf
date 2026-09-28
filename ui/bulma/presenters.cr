@@ -55,6 +55,45 @@ module Urssaf
           "reason"       => filing.try(&.reason.presence),
           "controls"     => view.controls.map { |control| fmt.message(Partiduo::Api::FieldError.new("base", control.key, control.params)) }.join(" "),
           "ready"        => view.transmittable? && (filing.nil? || filing.status == "rejected") ? "1" : nil,
+          "payable"      => view.payable? ? "1" : nil,
+          "remaining"    => filing.try { |row| row.status == "accepted" ? fmt.amount(row.remaining) : nil },
+          "paid"         => filing.try { |row| row.paid_total.zero? ? nil : fmt.amount(row.paid_total) },
+          "receipt_url"  => filing.try { |row| row.receipt? ? "#{Ui.url("receipt")}?starts_on=#{view.starts_on.to_s("%Y-%m-%d")}" : nil },
+        })
+      end
+
+      def self.payment(view : Api::PaymentView, fmt : PartiduoUi::Format) : Row
+        Ui.row({
+          "at"           => fmt.datetime(view.created_at),
+          "period"       => fmt.date(view.starts_on),
+          "remote_id"    => view.remote_id.presence,
+          "amount"       => fmt.amount(view.amount),
+          "rum"          => view.sepa_rum,
+          "status"       => view.status,
+          "status_label" => I18n.t(view.status_key),
+          "reason"       => view.reason.presence,
+        })
+      end
+
+      def self.anomaly(view : Api::AnomalyView, fmt : PartiduoUi::Format) : Row
+        Ui.row({
+          "id"     => view.id.to_s,
+          "code"   => view.code,
+          "label"  => I18n.t(view.code_key),
+          "detail" => view.detail.presence,
+          "period" => view.starts_on.try { |day| fmt.date(day) },
+          "at"     => fmt.datetime(view.created_at),
+        })
+      end
+
+      def self.sepa(view : Api::SepaMandateView, fmt : PartiduoUi::Format) : Row
+        Ui.row({
+          "rum"          => view.rum,
+          "iban"         => view.iban_masked,
+          "holder"       => view.holder,
+          "status"       => view.status,
+          "status_label" => I18n.t(view.status_key),
+          "signed_on"    => fmt.date(view.signed_on),
         })
       end
 

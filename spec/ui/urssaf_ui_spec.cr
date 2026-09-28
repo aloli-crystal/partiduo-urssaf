@@ -50,5 +50,67 @@ describe "Écran URSSAF en ligne sous /ext/URSSAF/ (ADR-005 D4, ADR-007 D7)" do
     reader.get("/ext/URSSAF/").status.should eq(200)
     reader.get("/ext/URSSAF/settings").status.should eq(403)
     reader.post("/ext/URSSAF/declare", {"starts_on" => "2026-07-01"}).status.should eq(403)
+    reader.post("/ext/URSSAF/pay", {"starts_on" => "2026-07-01"}).status.should eq(403)
+    reader.post("/ext/URSSAF/sepa/register", {"iban" => S::IBAN}).status.should eq(403)
+  end
+end
+
+describe "Écran URSSAF en ligne — mode simplifié, paiement, suivi (ADR-007 D3, D7)" do
+  it "figure dans le menu du mode simplifié, après l'aide URSSAF, avec son compteur" do
+    PartiduoUi::SimpleMode::MENU.map(&.code).should contain("URSSAF_ONLINE")
+    codes = PartiduoUi::SimpleMode::MENU.map(&.code)
+    codes.index("URSSAF_ONLINE").should eq((codes.index("MICRO_URSSAF") || raise "aide URSSAF absente") + 1)
+    Urssaf::Ui.add_simple_entry(PartiduoUi::SimpleMode::MENU)
+    PartiduoUi::SimpleMode::MENU.count(&.code.==("URSSAF_ONLINE")).should eq(1)
+    S.books
+    S.receipt("2026-04-10", "100")
+    browser = PartiduoUi::Accounts.signed_in
+    Partiduo::Config.travel_to(Time.utc(2026, 10, 5, 9, 0, 0)) do
+      dashboard = browser.get("/").html
+      dashboard.should contain(%(href="/ext/URSSAF/"))
+      dashboard.should contain("2 éléments URSSAF à traiter")
+    end
+  end
+
+  it "déclare, télécharge l'accusé, enregistre le mandat SEPA, paie, relève le suivi et traite une anomalie" do
+    S.books
+    S.connect
+    S.mandate
+    S.receipt("2026-07-10", "500")
+    browser = PartiduoUi::Accounts.signed_in
+    Partiduo::Config.travel_to(Time.utc(2026, 10, 5, 9, 0, 0)) do
+      browser.follow(browser.post("/ext/URSSAF/declare", {"starts_on" => "2026-07-01"}))
+      page = browser.get("/ext/URSSAF/?year=2026").html
+      page.should contain("data-urssaf-receipt")
+      page.should contain("data-urssaf-sepa-form")
+      page.should_not contain("data-urssaf-pay>")
+      page.should contain("gardez la main")
+
+      receipt = browser.get("/ext/URSSAF/receipt?starts_on=2026-07-01")
+      receipt.status.should eq(200)
+      receipt.headers["Content-Disposition"].should contain("accuse-DECL-101.pdf")
+
+      refused = browser.follow(browser.post("/ext/URSSAF/sepa/register", {"iban" => "FR00 1234", "holder" => "Jeanne Martin"})).html
+      refused.should contain("IBAN invalide.")
+      refused.should_not contain("FR00 1234")
+      registered = browser.follow(browser.post("/ext/URSSAF/sepa/register", {"iban" => S::IBAN, "bic" => "AGRIFRPP",
+                                                                             "holder" => "Jeanne Martin", "signed_on" => "2026-10-01",
+                                                                             "accepted" => "1"})).html
+      registered.should contain("Mandat SEPA enregistré.")
+      registered.should contain("FR76 **** **** 0189")
+      registered.should_not contain("30006000011234567890")
+      registered.should contain("data-urssaf-pay>")
+
+      paid = browser.follow(browser.post("/ext/URSSAF/pay", {"starts_on" => "2026-07-01"})).html
+      paid.should contain(%(data-urssaf-payment="initiated"))
+      S.urssaf.payment_outcome = "rejected"
+      refreshed = browser.follow(browser.post("/ext/URSSAF/refresh")).html
+      refreshed.should contain("1 anomalie à traiter")
+      refreshed.should contain(%(data-urssaf-anomaly="payment_rejected"))
+      id = Urssaf::Api.anomalies(S.admin).first.id
+      resolved = browser.follow(browser.post("/ext/URSSAF/anomaly/resolve", {"id" => id.to_s})).html
+      resolved.should contain("Anomalie notée traitée.")
+      resolved.should_not contain(%(data-urssaf-anomaly="payment_rejected"))
+    end
   end
 end

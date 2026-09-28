@@ -48,7 +48,10 @@ describe "Conventions de l'extension URSSAF" do
     Urssaf::Api::ENVIRONMENTS.each { |code| dynamic << "urssaf.environments.#{code}" }
     Urssaf::Api::MANDATE_STATUSES.each { |code| dynamic << "urssaf.mandate_statuses.#{code}" }
     %w[monthly quarterly].each { |code| dynamic << "urssaf.periodicities.#{code}" }
-    %w[signed notified revoked eligibility estimated declared rejected error].each { |code| dynamic << "urssaf.actions.#{code}" }
+    Urssaf::Api::EVENT_ACTIONS.each { |code| dynamic << "urssaf.actions.#{code}" }
+    Urssaf::Api::PAYMENT_STATUSES.each { |code| dynamic << "urssaf.payment_statuses.#{code}" }
+    Urssaf::Api::SEPA_STATUSES.each { |code| dynamic << "urssaf.sepa_statuses.#{code}" }
+    Urssaf::Api::ANOMALY_CODES.each { |code| dynamic << "urssaf.anomalies.#{code}" }
     Partiduo::Modules[Urssaf::CODE].permissions.each do |name|
       dynamic << "urssaf.permissions.#{name.lchop("urssaf.")}"
     end
@@ -62,8 +65,8 @@ describe "Conventions de l'extension URSSAF" do
   end
 
   it "range ses tables sous le préfixe urssaf_ (ADR-003 D5)" do
-    [Urssaf::Settings, Urssaf::Filing, Urssaf::Event].map(&.db_table)
-      .should eq(%w[urssaf_settings urssaf_filing urssaf_event])
+    [Urssaf::Settings, Urssaf::Filing, Urssaf::Event, Urssaf::Payment, Urssaf::Anomaly, Urssaf::SepaMandateRow].map(&.db_table)
+      .should eq(%w[urssaf_settings urssaf_filing urssaf_event urssaf_payment urssaf_anomaly urssaf_sepa_mandate])
   end
 
   it "ne parle au cœur, depuis ui/bulma, que par Partiduo::Api (ADR-005 D3)" do
@@ -90,10 +93,14 @@ describe "Conventions de l'extension URSSAF" do
     leaks.map(&.lchop(Urssaf::SpecSupport::ROOT + "/")).should be_empty
   end
 
-  it "ne journalise ni n'affiche les secrets" do
+  it "ne journalise ni n'affiche les secrets ni l'IBAN complet" do
     credentials = Urssaf::Credentials.new("app", "secret-tres-long", "sandbox")
     credentials.to_s.should_not contain("secret-tres-long")
     credentials.inspect.should_not contain("secret-tres-long")
+    iban = "FR7630006000011234567890189"
+    request = Urssaf::SepaMandateRequest.new("732829320", iban, "", "Jeanne", Time.utc)
+    input = Urssaf::Api::SepaMandateInput.new(iban, "", "Jeanne", Time.utc, true)
+    [request.to_s, request.inspect, input.to_s, input.inspect].each(&.should_not(contain(iban)))
   end
 
   it "n'utilise que des icônes de la planche de l'interface (ADR-005 D5)" do

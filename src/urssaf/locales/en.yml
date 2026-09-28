@@ -8,6 +8,8 @@ en:
         transmit: "Estimate and file turnover with URSSAF"
       settings:
         manage: "Configure URSSAF (API credentials, mandate)"
+      payment:
+        transmit: "Pay URSSAF contributions by SEPA direct debit and manage SEPA mandates"
     menu:
       declarations: "Online URSSAF return"
       settings: "Online URSSAF"
@@ -34,6 +36,40 @@ en:
       declared: "Return accepted"
       rejected: "Return rejected"
       error: "Error"
+      paid: "Online payment initiated"
+      payment_done: "Payment completed"
+      payment_rejected: "Payment rejected"
+      sepa_registered: "SEPA mandate registered"
+      sepa_revoked: "SEPA mandate revoked"
+      refreshed: "Status fetched from the URSSAF"
+      anomaly: "Anomaly"
+      resolved: "Anomaly handled"
+      remote_revoked: "Mandate revoked from the URSSAF account"
+    payment_statuses:
+      initiated: "Initiated"
+      done: "Completed"
+      rejected: "Rejected"
+    sepa_statuses:
+      active: "Active"
+      revoked: "Revoked"
+    anomalies:
+      rejected: "Declaration rejected"
+      urssaf: "Anomaly reported by the URSSAF"
+      contributions_changed: "Contributions changed by the URSSAF"
+      payment_rejected: "Payment rejected"
+      mandate_revoked: "Mandate revoked from the URSSAF account"
+    anomaly_details:
+      contributions_changed: "%{before} on the receipt, %{after} according to the URSSAF"
+    receipt:
+      title: "Turnover declaration receipt — URSSAF (third-party declaration)"
+      number: "Declaration number: %{number}"
+      siren: "SIREN: %{siren}"
+      period: "Period: from %{starts_on} to %{ends_on}"
+      turnover: "Declared turnover, %{category}: %{amount} €"
+      contribution: "Contributions due, %{category}: %{amount} €"
+      total: "Total contributions due: %{amount} €"
+      due_on: "Payment deadline: %{date}"
+      transmitted_at: "Transmitted on: %{at}"
     controls:
       already_transmitted: "Filed online (no. %{reference})."
       already_declared: "Period already noted as filed."
@@ -45,6 +81,17 @@ en:
       no_transport: "Connection to URSSAF not plugged in yet: file on the URSSAF website, then note the return on the URSSAF screen."
       no_credentials: "Save the API credentials in the online URSSAF settings."
     errors:
+      anomaly: "Unknown or already handled anomaly."
+      payment:
+        not_declared: "No accepted declaration for this period."
+        nothing_due: "Nothing left to pay for this period."
+        no_sepa: "Register a SEPA direct debit mandate first."
+      sepa:
+        iban: "Invalid IBAN."
+        bic: "Invalid BIC (8 or 11 characters)."
+        holder: "Enter the account holder."
+        accept: "The micro-entrepreneur must authorise the direct debit."
+        unknown: "Unknown or already revoked SEPA mandate."
       period: "Unknown return period."
       credentials:
         client_id: "Enter the application ID (client_id)."
@@ -64,3 +111,4 @@ en:
         rejected: "URSSAF rejects the return: %{reason}"
         mandate_unknown: "URSSAF does not know this mandate."
         account_unknown: "URSSAF knows no self-employed account for this SIREN."
+        sepa_refused: "The URSSAF refuses the SEPA mandate: %{reason}"

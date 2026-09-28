@@ -16,11 +16,16 @@ module Urssaf
     READ        = "urssaf.declaration.read"
     TRANSMIT    = "urssaf.declaration.transmit"
     SETTINGS    = "urssaf.settings.manage"
+    PAY         = "urssaf.payment.transmit"
 
     STATUSES         = Config::STATUSES
     ENVIRONMENTS     = Config::ENVIRONMENTS
     MANDATE_STATUSES = Config::MANDATE_STATUSES
     CATEGORIES       = Config::CATEGORIES
+    PAYMENT_STATUSES = Config::PAYMENT_STATUSES
+    SEPA_STATUSES    = Config::SEPA_STATUSES
+    ANOMALY_CODES    = Config::ANOMALY_CODES
+    EVENT_ACTIONS    = Config::EVENT_ACTIONS
 
     # --- Paramètres et mandat ------------------------------------------------------
 
@@ -145,6 +150,78 @@ module Urssaf
     def self.events(actor : Actor) : Array(EventView)
       Guard.authorize!(actor, READ, module_code: MODULE_CODE)
       Declarations.events
+    end
+
+    # Accusé de la déclaration acceptée de la période (pièce jointe du
+    # socle) ; `NotFound` s'il n'y en a pas.
+    def self.receipt(actor : Actor, starts_on : Time) : ReceiptView
+      Guard.authorize!(actor, READ, module_code: MODULE_CODE)
+      filing = Filing.filter(starts_on: starts_on).first
+      id = filing.try(&.receipt_attachment_id).try(&.to_i64)
+      raise Partiduo::Api::NotFound.new("urssaf_receipt", starts_on.to_s("%Y-%m-%d")) unless id
+      view = Partiduo::Api::Core.attachment(Actor.system, id)
+      ReceiptView.new(view.filename, view.content_type, Partiduo::Api::Core.attachment_content(Actor.system, id))
+    end
+
+    # --- Suivi : paiements, mandats SEPA, anomalies ------------------------------------
+
+    # Vue d'ensemble : cotisations dues, payées, reste dû, périodes à
+    # déclarer et à payer, anomalies ouvertes, mandat SEPA actif.
+    def self.overview(actor : Actor, today : Time = Partiduo::Config.today) : OverviewView
+      Guard.authorize!(actor, READ, module_code: MODULE_CODE)
+      FollowUp.overview(today)
+    end
+
+    # Nombre d'éléments à traiter (compteur du menu, « À traiter »).
+    def self.pending_count(actor : Actor, today : Time = Partiduo::Config.today) : Int64
+      Guard.authorize!(actor, READ, module_code: MODULE_CODE)
+      FollowUp.pending_count(today)
+    end
+
+    def self.payments(actor : Actor) : Array(PaymentView)
+      Guard.authorize!(actor, READ, module_code: MODULE_CODE)
+      FollowUp.payments
+    end
+
+    def self.anomalies(actor : Actor, open_only : Bool = true) : Array(AnomalyView)
+      Guard.authorize!(actor, READ, module_code: MODULE_CODE)
+      FollowUp.anomalies(open_only)
+    end
+
+    # Note une anomalie traitée.
+    def self.resolve_anomaly(actor : Actor, id : Int64) : Result(Nil)
+      Guard.authorize!(actor, TRANSMIT, module_code: MODULE_CODE)
+      FollowUp.resolve!(id, actor)
+    end
+
+    # Relève auprès de l'URSSAF l'état du mandat, des déclarations, des
+    # paiements et des mandats SEPA ; rend le nombre d'anomalies ouvertes.
+    def self.refresh(actor : Actor) : Result(Int32)
+      Guard.authorize!(actor, READ, module_code: MODULE_CODE)
+      FollowUp.refresh!(actor)
+    end
+
+    # Télépaiement SEPA du reste dû de la déclaration de la période.
+    def self.pay(actor : Actor, starts_on : Time) : Result(PaymentView)
+      Guard.authorize!(actor, PAY, module_code: MODULE_CODE)
+      FollowUp.pay!(starts_on, actor)
+    end
+
+    def self.sepa_mandates(actor : Actor) : Array(SepaMandateView)
+      Guard.authorize!(actor, READ, module_code: MODULE_CODE)
+      FollowUp.sepa_mandates
+    end
+
+    # Enregistre un mandat de prélèvement SEPA à l'URSSAF (IBAN jamais
+    # conservé en clair).
+    def self.register_sepa_mandate(actor : Actor, input : SepaMandateInput) : Result(SepaMandateView)
+      Guard.authorize!(actor, PAY, module_code: MODULE_CODE)
+      FollowUp.register_sepa!(input, actor)
+    end
+
+    def self.revoke_sepa_mandate(actor : Actor, rum : String) : Result(SepaMandateView)
+      Guard.authorize!(actor, PAY, module_code: MODULE_CODE)
+      FollowUp.revoke_sepa!(rum, actor)
     end
   end
 end

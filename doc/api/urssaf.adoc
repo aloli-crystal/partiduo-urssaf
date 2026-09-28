@@ -14,6 +14,7 @@ d'accès en première ligne, vues immuables, `Result` à erreurs par champ,
 |`urssaf.declaration.read` |périodes, déclarations, cotisations dues, historique
 |`urssaf.declaration.transmit` |estimation, déclaration
 |`urssaf.settings.manage` |identifiants de l'API, mandat, éligibilité
+|`urssaf.payment.transmit` |télépaiement SEPA, mandats SEPA
 |===
 
 == Paramètres et mandat
@@ -40,3 +41,48 @@ d'accès en première ligne, vues immuables, `Result` à erreurs par champ,
   éligible, périodicité différente, transport ou identifiants absents ;
   rejet de l'URSSAF conservé (`rejected`, motif).
 * `events(actor) : Array(EventView)`.
+* `receipt(actor, starts_on) : ReceiptView` — accusé conservé en pièce
+  jointe du socle (document de l'URSSAF, sinon accusé texte établi d'après
+  sa réponse) ; `NotFound` s'il n'y en a pas.
+
+`FilingView` porte aussi `receipt_attachment_id`, `payments`,
+`paid_total` (paiements effectués) et `remaining` (cotisations moins
+paiements effectués ou en cours) ; `PeriodView#payable?`.
+
+== Suivi, paiements, mandats SEPA
+
+* `overview(actor, today) : OverviewView` — état du mandat, transport,
+  cotisations dues, payées, reste dû, périodes à déclarer (échéance
+  passée ou proche, pas avant le début d'activité) et à payer, anomalies
+  ouvertes, mandat SEPA actif.
+* `pending_count(actor, today) : Int64` — à déclarer + à payer +
+  anomalies (compteur du menu).
+* `refresh(actor) : Result(Int32)` — relève le mandat (révoqué depuis
+  l'espace URSSAF : noté révoqué, anomalie), les déclarations
+  (régularisation, anomalies signalées), les paiements initiés et les
+  mandats SEPA ; rend le nombre d'anomalies ouvertes.
+* `anomalies(actor, open_only = true) : Array(AnomalyView)` — codes
+  `rejected`, `urssaf`, `contributions_changed`, `payment_rejected`,
+  `mandate_revoked` ; `resolve_anomaly(actor, id) : Result(Nil)`
+  (permission `transmit`).
+* `payments(actor) : Array(PaymentView)` — `initiated`, `done`,
+  `rejected` (motif).
+* `pay(actor, starts_on) : Result(PaymentView)` — reste dû de la
+  déclaration acceptée, par le mandat SEPA actif ; refus :
+  `urssaf.errors.payment.not_declared`, `.nothing_due`, `.no_sepa`,
+  mandat de tierce déclaration non notifié, transport ou identifiants
+  absents.
+* `sepa_mandates(actor)`, `register_sepa_mandate(actor, SepaMandateInput)`
+  (IBAN contrôlé, BIC facultatif, titulaire, autorisation `accepted` ;
+  l'IBAN n'est jamais conservé ni rendu en clair),
+  `revoke_sepa_mandate(actor, rum)`.
+
+== Transport
+
+`Urssaf::Transport` : `check`, `eligibility`, `notify_mandate`,
+`revoke_mandate`, `mandate_active?`, `estimate`, `declare`
+(`Acknowledgement` avec `receipt` facultatif), `declaration_state`,
+`sepa_mandates`, `register_sepa_mandate`, `revoke_sepa_mandate`, `pay`
+(idempotent sur la référence), `payment_state`. `Urssaf::OAuth2` fournit le
+jeton _client credentials_ à l'adaptateur réel (B-URS-001).
+

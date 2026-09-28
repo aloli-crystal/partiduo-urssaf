@@ -7,19 +7,21 @@
 # * Permissions : `urssaf.declaration.read` (voir les périodes, les
 #   déclarations transmises et les cotisations dues),
 #   `urssaf.declaration.transmit` (estimer et déclarer),
-#   `urssaf.settings.manage` (identifiants de l'API, mandat).
+#   `urssaf.settings.manage` (identifiants de l'API, mandat),
+#   `urssaf.payment.transmit` (télépaiement SEPA, mandats SEPA).
 # * Menus : « Déclaration URSSAF en ligne » sous « Éditions » (à côté de
 #   l'écran URSSAF du module) et paramètres sous « Paramètres ».
 Partiduo::Modules.register do
   code "URSSAF"
   name "urssaf.module.name"
-  version "0.1.0"
+  version "0.2.0"
   requires_core "~> 0.1"
   depends_on "MICRO"
 
   permission "urssaf.declaration.read"
   permission "urssaf.declaration.transmit"
   permission "urssaf.settings.manage"
+  permission "urssaf.payment.transmit"
 
   menu "URSSAF_ONLINE", parent: "REPORTS", order: 4, route: "urssaf:index", permission: "urssaf.declaration.read",
     label: "urssaf.menu.declarations"

@@ -8,6 +8,8 @@ fr:
         transmit: "Estimer et déclarer le chiffre d'affaires à l'URSSAF"
       settings:
         manage: "Paramétrer l'URSSAF (identifiants de l'API, mandat)"
+      payment:
+        transmit: "Payer les cotisations URSSAF par prélèvement SEPA et gérer les mandats SEPA"
     menu:
       declarations: "Déclaration URSSAF en ligne"
       settings: "URSSAF en ligne"
@@ -34,6 +36,40 @@ fr:
       declared: "Déclaration acceptée"
       rejected: "Déclaration rejetée"
       error: "Erreur"
+      paid: "Télépaiement initié"
+      payment_done: "Paiement effectué"
+      payment_rejected: "Paiement rejeté"
+      sepa_registered: "Mandat SEPA enregistré"
+      sepa_revoked: "Mandat SEPA révoqué"
+      refreshed: "Suivi relevé auprès de l'URSSAF"
+      anomaly: "Anomalie"
+      resolved: "Anomalie traitée"
+      remote_revoked: "Mandat révoqué depuis l'espace URSSAF"
+    payment_statuses:
+      initiated: "Initié"
+      done: "Effectué"
+      rejected: "Rejeté"
+    sepa_statuses:
+      active: "Actif"
+      revoked: "Révoqué"
+    anomalies:
+      rejected: "Déclaration rejetée"
+      urssaf: "Anomalie signalée par l'URSSAF"
+      contributions_changed: "Cotisations modifiées par l'URSSAF"
+      payment_rejected: "Paiement rejeté"
+      mandate_revoked: "Mandat révoqué depuis l'espace URSSAF"
+    anomaly_details:
+      contributions_changed: "%{before} à l'accusé, %{after} selon l'URSSAF"
+    receipt:
+      title: "Accusé de déclaration du chiffre d'affaires — URSSAF (tierce déclaration)"
+      number: "Numéro de la déclaration : %{number}"
+      siren: "SIREN : %{siren}"
+      period: "Période : du %{starts_on} au %{ends_on}"
+      turnover: "Chiffre d'affaires déclaré, %{category} : %{amount} €"
+      contribution: "Cotisations dues, %{category} : %{amount} €"
+      total: "Total des cotisations dues : %{amount} €"
+      due_on: "Date limite de paiement : %{date}"
+      transmitted_at: "Transmis le : %{at}"
     controls:
       already_transmitted: "Déclarée en ligne (n° %{reference})."
       already_declared: "Période déjà notée comme déclarée."
@@ -45,6 +81,17 @@ fr:
       no_transport: "Connexion à l'URSSAF pas encore branchée : déclarez sur le site de l'URSSAF, puis notez la déclaration dans l'écran URSSAF."
       no_credentials: "Enregistrez les identifiants de l'API dans les paramètres de l'URSSAF en ligne."
     errors:
+      anomaly: "Anomalie inconnue ou déjà traitée."
+      payment:
+        not_declared: "Aucune déclaration acceptée pour cette période."
+        nothing_due: "Il ne reste rien à payer pour cette période."
+        no_sepa: "Enregistrez d'abord un mandat de prélèvement SEPA."
+      sepa:
+        iban: "IBAN invalide."
+        bic: "BIC invalide (8 ou 11 caractères)."
+        holder: "Indiquez le titulaire du compte."
+        accept: "Le micro-entrepreneur doit autoriser le prélèvement."
+        unknown: "Mandat SEPA inconnu ou déjà révoqué."
       period: "Période de déclaration inconnue."
       credentials:
         client_id: "Indiquez l'identifiant de l'application (client_id)."
@@ -64,3 +111,4 @@ fr:
         rejected: "L'URSSAF rejette la déclaration : %{reason}"
         mandate_unknown: "L'URSSAF ne connaît pas ce mandat."
         account_unknown: "L'URSSAF ne connaît aucun compte auto-entrepreneur pour ce SIREN."
+        sepa_refused: "L'URSSAF refuse le mandat SEPA : %{reason}"

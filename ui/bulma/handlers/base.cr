@@ -26,6 +26,19 @@ module Urssaf
         nil
       end
 
+      # Fil d'Ariane : tableau de bord, aide URSSAF du module `micro` (si
+      # lisible), puis l'écran de l'extension.
+      def urssaf_crumbs : Array(PartiduoUi::Screen::Crumb)
+        list = [] of PartiduoUi::Screen::Crumb
+        if can?("micro.register.read")
+          list << PartiduoUi::Screen::Crumb.new(I18n.t("ui.micro.urssaf.title"), reverse("micro:urssaf"))
+        else
+          list << crumb("core.menu.reports")
+        end
+        list << PartiduoUi::Screen::Crumb.new(I18n.t("urssaf_ui.title"))
+        list
+      end
+
       def back_to_year(day : Time?) : Marten::HTTP::Response
         go(day ? "#{Ui.url("index")}?year=#{day.year}" : Ui.url("index"))
       end

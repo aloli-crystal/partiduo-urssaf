@@ -1,13 +1,28 @@
-{# SPDX-License-Identifier: AGPL-3.0-or-later. Écran « Déclaration URSSAF en ligne » (ADR-007 D7) : état du mandat, périodes de l'année (périodicité du module micro), chiffre d'affaires arrondi à l'euro, cotisations estimées par Partiduo et dues selon l'URSSAF, estimation et déclaration, historique. Sans connexion : renvoi vers l'écran URSSAF du module (déclaration notée à la main). #}{% extend "ui/base.html" %}
+{# SPDX-License-Identifier: AGPL-3.0-or-later. Écran « Déclaration URSSAF en ligne » (ADR-007 D7), dans le menu du mode simplifié de la micro-entreprise : rappel que le micro-entrepreneur garde la main dans son espace URSSAF, état du mandat ; suivi (cotisations dues, payées, reste, anomalies, relevé) ; périodes de l'année (chiffre d'affaires du module micro arrondi à l'euro, estimation, déclaration, accusé, télépaiement) ; mandat de prélèvement SEPA ; paiements ; historique. Sans connexion : renvoi vers l'aide URSSAF du module (déclaration notée à la main). #}{% extend "ui/base.html" %}
 {% block title %}{{ title }}{% endblock title %}
 {% block crumbs %}{% include "ui/_crumbs.html" %}{% endblock crumbs %}
 {% block heading %}{{ title }} <span class="pd-ext">URSSAF</span>{% endblock heading %}
+{% block actions %}{% if transport %}<form method="post" action="{{ refresh_url }}">{% csrf_input %}<button class="button pd-touch" type="submit" data-urssaf-refresh>{% include "ui/_icon.html" with name="refresh-cw" %}<span>{% translate "urssaf_ui.actions.refresh" %}</span></button></form>{% endif %}{% if can_settings %}<a class="button pd-touch" href="{{ settings_url }}">{% include "ui/_icon.html" with name="settings" %}<span>{% translate "urssaf_ui.settings.title" %}</span></a>{% endif %}{% endblock actions %}
 {% block content %}
+<p class="pd-muted mb-3" data-urssaf-control>{% translate "urssaf_ui.how" %}{% if micro_urssaf %} <a href="{{ micro_urssaf }}">{% translate "urssaf_ui.micro_link" %}</a>{% endif %}</p>
 {% if transport %}{% if mandate_ok %}<div class="notification is-info is-light pd-alert" role="status" data-urssaf-mandate="notified">{% include "ui/_icon.html" with name="shield-check" %}<div><p>{% translate "urssaf_ui.mandate_ok" name: transport %}</p></div></div>
 {% else %}<div class="notification is-warning is-light pd-alert" role="status" data-urssaf-mandate="missing">{% include "ui/_icon.html" with name="triangle-alert" %}<div><p>{% translate "urssaf_ui.mandate_missing" mandate: mandate %}</p>{% if can_settings %}<p class="mt-2"><a href="{{ settings_url }}">{% translate "urssaf_ui.settings.title" %}</a></p>{% endif %}</div></div>{% endif %}
 {% else %}<div class="notification is-warning is-light pd-alert" role="status" data-urssaf-transport="unavailable">{% include "ui/_icon.html" with name="triangle-alert" %}<div><p>{% translate "urssaf_ui.transport_unavailable" %}</p></div></div>{% endif %}
+<div class="pd-tiles" data-urssaf-summary>
+  <div class="pd-panel pd-tile"><span class="lbl">{% translate "urssaf_ui.summary.due" %}</span><span class="val">{{ summary.due }}</span></div>
+  <div class="pd-panel pd-tile"><span class="lbl">{% translate "urssaf_ui.summary.paid" %}</span><span class="val">{{ summary.paid }}</span></div>
+  <div class="pd-panel pd-tile"><span class="lbl">{% translate "urssaf_ui.summary.remaining" %}</span><span class="val" data-urssaf-remaining>{{ summary.remaining }}</span></div>
+  <div class="pd-panel pd-tile"><span class="lbl">{% translate "urssaf_ui.summary.to_declare" %}</span><span class="val">{{ summary.to_declare }}</span></div>
+</div>
+{% if anomalies %}<section class="pd-panel" aria-labelledby="pd-urssaf-anomalies">
+  <header><h2 id="pd-urssaf-anomalies">{% translate "urssaf_ui.anomalies" %}</h2></header>
+  <div class="pd-scroll"><table class="table is-fullwidth"><caption class="is-sr-only">{% translate "urssaf_ui.anomalies" %}</caption>
+    <tbody>{% for anomaly in anomalies %}<tr data-urssaf-anomaly="{{ anomaly.code }}"><td>{{ anomaly.at }}</td><td><strong>{{ anomaly.label }}</strong>{% if anomaly.period %} · {{ anomaly.period }}{% endif %}{% if anomaly.detail %}<br><span class="is-size-7">{{ anomaly.detail }}</span>{% endif %}</td>
+      <td>{% if can_transmit %}<form method="post" action="{{ resolve_url }}">{% csrf_input %}<input type="hidden" name="id" value="{{ anomaly.id }}"><button class="button is-small pd-touch" type="submit">{% include "ui/_icon.html" with name="check" %}<span>{% translate "urssaf_ui.actions.resolve" %}</span></button></form>{% endif %}</td></tr>{% endfor %}</tbody>
+  </table></div>
+</section>{% endif %}
 <section class="pd-panel" aria-labelledby="pd-urssaf-periods">
-  <header><h2 id="pd-urssaf-periods">{% translate "urssaf_ui.periods" year: year %}</h2><span class="buttons"><a class="button is-small" href="{{ previous_url }}">‹</a><a class="button is-small" href="{{ next_url }}">›</a></span></header>
+  <header><h2 id="pd-urssaf-periods">{% translate "urssaf_ui.periods" year: year %}</h2><span class="buttons"><a class="button is-small" href="{{ previous_url }}" aria-label="{% translate 'urssaf_ui.previous_year' %}">‹</a><a class="button is-small" href="{{ next_url }}" aria-label="{% translate 'urssaf_ui.next_year' %}">›</a></span></header>
   {% if periods %}<div class="pd-scroll"><table class="table is-fullwidth" data-urssaf-periods>
     <caption class="is-sr-only">{% translate "urssaf_ui.periods" year: year %}</caption>
     <thead><tr><th scope="col">{% translate "urssaf_ui.columns.period" %}</th><th scope="col" class="pd-hide-s">{% translate "urssaf_ui.columns.due_on" %}</th><th scope="col" class="has-text-right">{% translate "urssaf_ui.columns.turnover" %}</th><th scope="col" class="has-text-right pd-hide-s">{% translate "urssaf_ui.columns.estimated" %}</th><th scope="col">{% translate "urssaf_ui.columns.status" %}</th><th scope="col"><span class="is-sr-only">{% translate "urssaf_ui.columns.actions" %}</span></th></tr></thead>
@@ -16,19 +31,48 @@
       <td class="pd-hide-s">{{ period.due_on }}</td>
       <td class="has-text-right pd-mono">{{ period.turnover }}</td>
       <td class="has-text-right pd-mono pd-hide-s">{{ period.estimated }}</td>
-      <td>{% if period.status %}<span class="tag {% if period.status == 'accepted' %}is-success{% else %}is-danger{% endif %} is-light" data-urssaf-status="{{ period.status }}">{{ period.status_label }}</span>{% if period.remote_id %} <span class="pd-mono is-size-7">{{ period.remote_id }}</span>{% endif %}{% if period.due %}<br><span class="is-size-7">{% translate "urssaf_ui.contributions_due" amount: period.due %}{% if period.payment_due %} · {% translate "urssaf_ui.payment_due" date: period.payment_due %}{% endif %}</span>{% endif %}{% if period.reason %}<br><span class="is-size-7 has-text-danger">{{ period.reason }}</span>{% endif %}{% else %}<span class="pd-muted">{{ period.micro_status }}</span>{% endif %}
+      <td>{% if period.status %}<span class="tag {% if period.status == 'accepted' %}is-success{% else %}is-danger{% endif %} is-light" data-urssaf-status="{{ period.status }}">{{ period.status_label }}</span>{% if period.remote_id %} <span class="pd-mono is-size-7">{{ period.remote_id }}</span>{% endif %}{% if period.due %}<br><span class="is-size-7">{% translate "urssaf_ui.contributions_due" amount: period.due %}{% if period.payment_due %} · {% translate "urssaf_ui.payment_due" date: period.payment_due %}{% endif %}</span>{% endif %}{% if period.paid %}<br><span class="is-size-7">{% translate "urssaf_ui.paid" amount: period.paid %}</span>{% endif %}{% if period.payable %}<br><span class="is-size-7" data-urssaf-payable>{% translate "urssaf_ui.remaining" amount: period.remaining %}</span>{% endif %}{% if period.reason %}<br><span class="is-size-7 has-text-danger">{{ period.reason }}</span>{% endif %}{% if period.receipt_url %}<br><a class="is-size-7" href="{{ period.receipt_url }}" data-urssaf-receipt>{% translate "urssaf_ui.receipt" %}</a>{% endif %}{% else %}<span class="pd-muted">{{ period.micro_status }}</span>{% endif %}
         {% if period.controls %}<br><span class="is-size-7 pd-muted">{{ period.controls }}</span>{% endif %}</td>
-      <td>{% if can_transmit %}{% if period.ready %}<div class="buttons"><form method="post" action="{{ estimate_url }}">{% csrf_input %}<input type="hidden" name="starts_on" value="{{ period.starts_on }}"><button class="button is-small pd-touch" type="submit">{% translate "urssaf_ui.actions.estimate" %}</button></form>
-        <form method="post" action="{{ declare_url }}">{% csrf_input %}<input type="hidden" name="starts_on" value="{{ period.starts_on }}"><button class="button is-small is-primary pd-touch" type="submit" data-urssaf-declare>{% include "ui/_icon.html" with name="send" %}<span>{% translate "urssaf_ui.actions.declare" %}</span></button></form></div>{% endif %}{% endif %}</td>
+      <td><div class="buttons">{% if can_transmit %}{% if period.ready %}<form method="post" action="{{ estimate_url }}">{% csrf_input %}<input type="hidden" name="starts_on" value="{{ period.starts_on }}"><button class="button is-small pd-touch" type="submit">{% translate "urssaf_ui.actions.estimate" %}</button></form>
+        <form method="post" action="{{ declare_url }}">{% csrf_input %}<input type="hidden" name="starts_on" value="{{ period.starts_on }}"><button class="button is-small is-primary pd-touch" type="submit" data-urssaf-declare>{% include "ui/_icon.html" with name="send" %}<span>{% translate "urssaf_ui.actions.declare" %}</span></button></form>{% endif %}{% endif %}
+        {% if can_pay %}{% if period.payable %}{% if sepa %}<form method="post" action="{{ pay_url }}">{% csrf_input %}<input type="hidden" name="starts_on" value="{{ period.starts_on }}"><button class="button is-small is-primary pd-touch" type="submit" data-urssaf-pay>{% translate "urssaf_ui.actions.pay" amount: period.remaining %}</button></form>{% endif %}{% endif %}{% endif %}</div></td>
     </tr>{% endfor %}</tbody>
   </table></div>
   {% else %}<div class="pd-body"><p class="pd-muted">{% translate "urssaf_ui.no_period" %}</p></div>{% endif %}
 </section>
+<section class="pd-panel" aria-labelledby="pd-urssaf-sepa">
+  <header><h2 id="pd-urssaf-sepa">{% translate "urssaf_ui.sepa.title" %}</h2>{% if sepa %}<span class="tag is-success is-light" data-urssaf-sepa="{{ sepa.status }}">{{ sepa.status_label }}</span>{% endif %}</header>
+  <div class="pd-body">
+    {% if sepa %}<dl class="pd-dl">
+      <dt>{% translate "urssaf_ui.sepa.rum" %}</dt><dd class="pd-mono">{{ sepa.rum }}</dd>
+      <dt>{% translate "urssaf_ui.sepa.iban" %}</dt><dd class="pd-mono">{{ sepa.iban }}</dd>
+      <dt>{% translate "urssaf_ui.sepa.holder" %}</dt><dd>{{ sepa.holder }}</dd>
+      <dt>{% translate "urssaf_ui.settings.signed_on" %}</dt><dd>{{ sepa.signed_on }}</dd>
+    </dl>
+    {% if can_pay %}<form method="post" action="{{ revoke_sepa }}" class="mt-3">{% csrf_input %}<input type="hidden" name="rum" value="{{ sepa.rum }}"><button class="button is-danger is-light pd-touch" type="submit">{% translate "urssaf_ui.sepa.revoke" %}</button></form>{% endif %}
+    {% else %}<p class="help mb-3">{% translate "urssaf_ui.sepa.none" %}</p>
+    {% if can_pay %}<form method="post" action="{{ sepa_url }}" novalidate autocomplete="off" data-urssaf-sepa-form>{% csrf_input %}
+      <div class="field"><label class="label" for="pd-urssaf-iban">{% translate "urssaf_ui.sepa.iban" %}</label><input class="input pd-mono" id="pd-urssaf-iban" name="iban" value="" autocomplete="off" inputmode="text"></div>
+      <div class="field"><label class="label" for="pd-urssaf-bic">{% translate "urssaf_ui.sepa.bic" %}</label><input class="input pd-mono" id="pd-urssaf-bic" name="bic" value="" autocomplete="off"></div>
+      <div class="field"><label class="label" for="pd-urssaf-holder">{% translate "urssaf_ui.sepa.holder" %}</label><input class="input" id="pd-urssaf-holder" name="holder" value="" maxlength="140"></div>
+      <div class="field"><label class="label" for="pd-urssaf-sepa-signed">{% translate "urssaf_ui.settings.signed_on" %}</label><input class="input pd-mono" type="date" id="pd-urssaf-sepa-signed" name="signed_on" value="{{ today }}"></div>
+      <p class="help mb-2">{% translate "urssaf_ui.sepa.terms" %}</p>
+      <div class="field"><label class="checkbox"><input type="checkbox" name="accepted" value="1"> {% translate "urssaf_ui.sepa.accept" %}</label></div>
+      <button class="button is-primary pd-touch" type="submit">{% translate "urssaf_ui.sepa.register" %}</button>
+    </form>{% endif %}{% endif %}
+  </div>
+</section>
+{% if payments %}<section class="pd-panel" aria-labelledby="pd-urssaf-payments">
+  <header><h2 id="pd-urssaf-payments">{% translate "urssaf_ui.payments" %}</h2></header>
+  <div class="pd-scroll"><table class="table is-fullwidth" data-urssaf-payments><caption class="is-sr-only">{% translate "urssaf_ui.payments" %}</caption>
+    <thead><tr><th scope="col">{% translate "urssaf_ui.columns.date" %}</th><th scope="col">{% translate "urssaf_ui.columns.period" %}</th><th scope="col" class="has-text-right">{% translate "urssaf_ui.columns.amount" %}</th><th scope="col">{% translate "urssaf_ui.columns.status" %}</th></tr></thead>
+    <tbody>{% for payment in payments %}<tr data-urssaf-payment="{{ payment.status }}"><td>{{ payment.at }}</td><td>{{ payment.period }}</td><td class="has-text-right pd-mono">{{ payment.amount }}</td><td><span class="tag is-light">{{ payment.status_label }}</span>{% if payment.remote_id %} <span class="pd-mono is-size-7">{{ payment.remote_id }}</span>{% endif %}{% if payment.reason %}<br><span class="is-size-7 has-text-danger">{{ payment.reason }}</span>{% endif %}</td></tr>{% endfor %}</tbody>
+  </table></div>
+</section>{% endif %}
 {% if events %}<section class="pd-panel" aria-labelledby="pd-urssaf-events">
   <header><h2 id="pd-urssaf-events">{% translate "urssaf_ui.history" %}</h2></header>
   <div class="pd-scroll"><table class="table is-fullwidth"><caption class="is-sr-only">{% translate "urssaf_ui.history" %}</caption>
     <tbody>{% for event in events %}<tr><td>{{ event.at }}</td><td>{{ event.action }}</td><td>{% if event.detail %}{{ event.detail }}{% endif %}</td></tr>{% endfor %}</tbody>
   </table></div>
 </section>{% endif %}
-<p class="help">{% translate "urssaf_ui.how" %}</p>
 {% endblock content %}
