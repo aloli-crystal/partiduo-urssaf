@@ -60,10 +60,14 @@ nl:
       mandate_revoked: "Mandaat ingetrokken vanuit de URSSAF-account"
       paid_elsewhere: "Bijdragen buiten Partiduo betaald"
       payment_unknown: "Betaling zonder URSSAF-nummer"
+      not_marked: "Aangifte verzonden, niet genoteerd in de micro-onderneming"
+      turnover_changed: "Te corrigeren aangifte: omzet in het register gewijzigd"
     anomaly_details:
       contributions_changed: "%{before} op het ontvangstbewijs, %{after} volgens de URSSAF"
       paid_elsewhere: "%{urssaf} betaald volgens de URSSAF, %{partiduo} via Partiduo: controleer vóór betaling"
       payment_unknown: "Opdracht %{reference} van %{amount} zonder URSSAF-nummer: controleer ze in de URSSAF-account"
+      not_marked: "Periode van %{from} tot %{to}: noteer ze als aangegeven in het URSSAF-scherm van de micro-onderneming"
+      turnover_changed: "Periode van %{from} tot %{to}: %{declared} € aangegeven, %{registered} € in het register; corrigeer de aangifte in de URSSAF-account"
     event_details:
       eligibility: "In aanmerking: %{eligible}; periodiciteit: %{periodicity}"
       paid: "Aangifte %{declaration}: %{amount}"
@@ -91,6 +95,8 @@ nl:
       negative_turnover: "Negatieve omzet (%{categories}): de URSSAF aanvaardt alleen positieve bedragen of nul; controleer de creditnota's van de periode."
       no_transport: "Verbinding met de URSSAF nog niet aangesloten: doe de aangifte op de website van de URSSAF en noteer ze daarna in het URSSAF-scherm."
       no_credentials: "Sla de API-gegevens op in de instellingen van URSSAF online."
+      not_marked: "Online aangegeven maar niet genoteerd in de micro-onderneming: de lijnen blijven wijzigbaar, noteer de aangifte."
+      turnover_changed: "Te corrigeren aangifte: %{declared} € aangegeven, %{registered} € in het register. Corrigeer ze in de URSSAF-account."
     errors:
       anomaly: "Onbekende of al behandelde afwijking."
       payment:

@@ -60,10 +60,14 @@ en:
       mandate_revoked: "Mandate revoked from the URSSAF account"
       paid_elsewhere: "Contributions paid outside Partiduo"
       payment_unknown: "Payment without an URSSAF number"
+      not_marked: "Return transmitted but not noted in the micro-business"
+      turnover_changed: "Return to correct: register turnover changed"
     anomaly_details:
       contributions_changed: "%{before} on the receipt, %{after} according to the URSSAF"
       paid_elsewhere: "%{urssaf} paid according to the URSSAF, %{partiduo} through Partiduo: check before paying"
       payment_unknown: "Order %{reference} for %{amount} has no URSSAF number: check it in the URSSAF account"
+      not_marked: "Period from %{from} to %{to}: note it as declared in the micro-business URSSAF screen"
+      turnover_changed: "Period from %{from} to %{to}: €%{declared} declared, €%{registered} in the register; correct the return in the URSSAF account"
     event_details:
       eligibility: "Eligible: %{eligible}; periodicity: %{periodicity}"
       paid: "Declaration %{declaration}: %{amount}"
@@ -91,6 +95,8 @@ en:
       negative_turnover: "Negative turnover (%{categories}): the URSSAF only accepts zero or positive amounts; check the period's credit notes."
       no_transport: "Connection to URSSAF not plugged in yet: file on the URSSAF website, then note the return on the URSSAF screen."
       no_credentials: "Save the API credentials in the online URSSAF settings."
+      not_marked: "Declared online but not noted in the micro-business: its lines can still be edited, note the return."
+      turnover_changed: "Return to correct: €%{declared} declared, €%{registered} in the register. Correct it in the URSSAF account."
     errors:
       anomaly: "Unknown or already handled anomaly."
       payment:

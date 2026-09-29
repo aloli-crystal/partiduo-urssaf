@@ -55,6 +55,7 @@ en:
     actions:
       estimate: "Estimate"
       declare: "File"
+      declare_confirm: "Declare this period to URSSAF? Once declared, its lines can no longer be changed: a mistake will be corrected by a reversal, counted in the next return."
       refresh: "Fetch status"
       resolve: "Handled"
       pay: "Pay %{amount}"

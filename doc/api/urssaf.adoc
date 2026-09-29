@@ -35,8 +35,15 @@ d'accès en première ligne, vues immuables, `Result` à erreurs par champ,
 * `periods(actor, year, today) : Array(PeriodView)` — périodes du module
   `micro`, chiffre d'affaires par catégorie arrondi à l'euro, estimation
   de Partiduo, déclaration transmise, contrôles (`urssaf.controls.*`,
-  dont `negative_turnover`, bloquant). Lu dans le module `micro` avec
+  dont `negative_turnover`, bloquant ; pour une déclaration acceptée,
+  avertissements `not_marked` et `turnover_changed` quand le module `micro`
+  ne la reflète plus, D-MIC2-004). Lu dans le module `micro` avec
   l'acteur : exige aussi `micro.register.read` (D-URS-010).
+* Une déclaration acceptée est notée dans le module `micro`, qui clôt la
+  période : ses lignes deviennent intangibles, corrigées par
+  contre-passation sur une période suivante (D-MIC2-001) ; la transmission
+  et le relevé (`refresh`) ouvrent les anomalies `not_marked` et
+  `turnover_changed` le cas échéant, sans rien bloquer.
 * `estimate(actor, starts_on) : Result(Array(ContributionView))` —
   `micro.register.read` aussi.
 * `declare(actor, starts_on) : Result(PeriodView)` — refus : période en
@@ -75,7 +82,10 @@ paiements effectués ou en cours) ; `PeriodView#payable?`.
   et les mandats SEPA ; rend le nombre d'anomalies ouvertes.
 * `anomalies(actor, open_only = true) : Array(AnomalyView)` — codes
   `rejected`, `urssaf`, `contributions_changed`, `payment_rejected`,
-  `mandate_revoked`, `paid_elsewhere`, `payment_unknown` ; détail neutre
+  `mandate_revoked`, `paid_elsewhere`, `payment_unknown`, `not_marked`
+  et `turnover_changed` (déclaration acceptée que le module `micro` ne
+  reflète plus : période non notée, chiffre d'affaires du registre
+  différent — déclaration à corriger, D-MIC2-004) ; détail neutre
   (motif de l'URSSAF ou JSON) ; `resolve_anomaly(actor, id) : Result(Nil)`
   (permission `transmit`).
 * `payments(actor, limit = nil) : Array(PaymentView)` — `initiated`, `done`,

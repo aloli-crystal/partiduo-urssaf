@@ -55,6 +55,7 @@ fr:
     actions:
       estimate: "Estimer"
       declare: "Déclarer"
+      declare_confirm: "Déclarer cette période à l'URSSAF ? Une fois déclarée, ses lignes ne se modifient plus : une erreur se corrigera par une contre-passation, comptée dans la déclaration suivante."
       refresh: "Relever le suivi"
       resolve: "Traitée"
       pay: "Payer %{amount}"

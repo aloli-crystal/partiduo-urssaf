@@ -21,9 +21,9 @@ module Urssaf
     SEPA_STATUSES = %w[active revoked]
 
     # Anomalies du suivi (`paid_elsewhere`, `payment_unknown` : migration
-    # 0004).
+    # 0004 ; `not_marked`, `turnover_changed` : migration 0005, D-MIC2-004).
     ANOMALY_CODES = %w[rejected urssaf contributions_changed payment_rejected mandate_revoked paid_elsewhere
-      payment_unknown]
+      payment_unknown not_marked turnover_changed]
 
     # Actions de l'historique.
     EVENT_ACTIONS = %w[signed notified revoked eligibility estimated declared rejected error paid payment_done

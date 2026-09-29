@@ -39,6 +39,28 @@ module Urssaf
       end
     end
 
+    # Déclarations acceptées que le module `micro` ne reflète plus
+    # (D-MIC2-004) : période non notée comme déclarée dans le module
+    # (`not_marked`) ou chiffre d'affaires du registre différent de celui
+    # transmis (`turnover_changed`, déclaration à corriger dans l'espace
+    # URSSAF). Toutes les déclarations acceptées, ou celles des périodes
+    # `starts_on`. Anomalies sans doublon ; rien n'est bloqué.
+    def self.check_registers(actor : Actor, starts_on : Array(Time)? = nil) : Nil
+      filings = Filing.filter(status: "accepted")
+      filings = filings.filter(starts_on__in: starts_on) if starts_on
+      filings.to_a.group_by(&.starts_on!.year).each do |year, rows|
+        periods = Micro.declarations(actor, year).index_by(&.starts_on)
+        rows.each do |filing|
+          view = periods[filing.starts_on!]?
+          next unless view
+          Declarations.register_controls(view, filing).each do |control|
+            code = control.key.lchop("urssaf.controls.")
+            anomaly(code, control.params.to_json, filing.id)
+          end
+        end
+      end
+    end
+
     def self.resolve!(id : Int64, actor : Actor) : Partiduo::Api::Result(Nil)
       row = Anomaly.filter(id: id).first
       return Partiduo::Api::Result(Nil).failure(FieldError.base("urssaf.errors.anomaly")) unless row && row.resolved_at.nil?
@@ -266,6 +288,7 @@ module Urssaf
         Declarations.log("error", ex.key, actor)
         return result.failure(FieldError.base(ex.key, ex.params))
       end
+      check_registers(actor)
       open = Anomaly.filter(resolved_at: nil).count.to_i
       Declarations.log("refreshed", open.to_s, actor)
       result.success(open)

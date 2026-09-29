@@ -82,7 +82,9 @@ module Urssaf
                       periodicity : String) : Array(ApiT::ControlView)
       list = [] of ApiT::ControlView
       if filing && filing.status == "accepted"
-        return [control("already_transmitted", "info", {"reference" => filing.remote_id.to_s})]
+        list << control("already_transmitted", "info", {"reference" => filing.remote_id.to_s})
+        list.concat(register_controls(declaration, filing))
+        return list
       end
       list << control("already_declared") if declaration.status == "declared"
       list << control("period_open") if declaration.status.in?("open", "upcoming")
@@ -101,6 +103,33 @@ module Urssaf
       end
       list << control("no_transport", "warning") unless Transports.available?
       list
+    end
+
+    # Déclaration acceptée que le module `micro` ne reflète plus
+    # (D-MIC2-004) : période restée ouverte dans le module (la déclaration
+    # n'y a pas été notée, ses lignes restent modifiables), ou chiffre
+    # d'affaires du registre différent de celui transmis — déclaration à
+    # corriger dans l'espace URSSAF. Avertissements, jamais bloquants.
+    def self.register_controls(declaration : Micro::DeclarationView, filing : Filing) : Array(ApiT::ControlView)
+      list = [] of ApiT::ControlView
+      period = {"from" => declaration.starts_on.to_s("%Y-%m-%d"), "to" => declaration.ends_on.to_s("%Y-%m-%d")}
+      list << control("not_marked", "warning", period) unless declaration.status == "declared"
+      sent = filed_turnover(filing)
+      current = turnover(declaration)
+      unless Config::CATEGORIES.all? { |category| (sent[category]? || BigDecimal.new(0)) == (current[category]? || BigDecimal.new(0)) }
+        list << control("turnover_changed", "warning", period.merge({
+          "declared"   => FollowUp.decimal(sent.values.sum(BigDecimal.new(0))),
+          "registered" => FollowUp.decimal(current.values.sum(BigDecimal.new(0))),
+        }))
+      end
+      list
+    end
+
+    # Chiffre d'affaires transmis, par catégorie.
+    def self.filed_turnover(filing : Filing) : Hash(String, BigDecimal)
+      Hash(String, String).from_json(filing.turnover.to_s).transform_values { |value| BigDecimal.new(value) }
+    rescue JSON::ParseException
+      {} of String => BigDecimal
     end
 
     def self.period(actor : Partiduo::Api::Actor, starts_on : Time) : Micro::DeclarationView?
@@ -291,6 +320,9 @@ module Urssaf
       marked = Micro.mark_declared(actor, Micro::DeclarationInput.new(declaration.starts_on, Partiduo::Config.today,
         ack.remote_id[0, Math.min(ack.remote_id.size, 100)]))
       log("error", marked.errors.map(&.key).join(", "), actor) if marked.failure?
+      # La période est désormais close dans le module ; une ligne modifiée
+      # entre le calcul et la note ferait diverger registre et déclaration.
+      FollowUp.check_registers(actor, [declaration.starts_on])
       result.success(nil)
     end
 

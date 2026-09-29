@@ -55,6 +55,7 @@ nl:
     actions:
       estimate: "Ramen"
       declare: "Aangeven"
+      declare_confirm: "Deze periode aangeven bij de URSSAF? Eenmaal aangegeven worden de regels niet meer gewijzigd: een fout wordt verbeterd door een tegenboeking, meegeteld in de volgende aangifte."
       refresh: "Opvolging ophalen"
       resolve: "Behandeld"
       pay: "%{amount} betalen"

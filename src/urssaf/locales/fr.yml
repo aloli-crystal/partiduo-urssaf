@@ -60,10 +60,14 @@ fr:
       mandate_revoked: "Mandat révoqué depuis l'espace URSSAF"
       paid_elsewhere: "Cotisations payées hors de Partiduo"
       payment_unknown: "Paiement sans numéro de l'URSSAF"
+      not_marked: "Déclaration transmise, non notée dans la micro-entreprise"
+      turnover_changed: "Déclaration à corriger : chiffre d'affaires du registre modifié"
     anomaly_details:
       contributions_changed: "%{before} à l'accusé, %{after} selon l'URSSAF"
       paid_elsewhere: "%{urssaf} payés selon l'URSSAF, %{partiduo} par Partiduo : vérifiez avant de payer"
       payment_unknown: "Ordre %{reference} de %{amount} sans numéro de l'URSSAF : vérifiez-le dans l'espace URSSAF"
+      not_marked: "Période du %{from} au %{to} : notez-la comme déclarée dans l'écran URSSAF de la micro-entreprise"
+      turnover_changed: "Période du %{from} au %{to} : %{declared} € déclarés, %{registered} € au registre ; corrigez la déclaration dans l'espace URSSAF"
     event_details:
       eligibility: "Éligible : %{eligible} ; périodicité : %{periodicity}"
       paid: "Déclaration %{declaration} : %{amount}"
@@ -91,6 +95,8 @@ fr:
       negative_turnover: "Chiffre d'affaires négatif (%{categories}) : l'URSSAF n'accepte que des montants positifs ou nuls ; vérifiez les avoirs de la période."
       no_transport: "Connexion à l'URSSAF pas encore branchée : déclarez sur le site de l'URSSAF, puis notez la déclaration dans l'écran URSSAF."
       no_credentials: "Enregistrez les identifiants de l'API dans les paramètres de l'URSSAF en ligne."
+      not_marked: "Déclarée en ligne mais pas notée dans la micro-entreprise : ses lignes restent modifiables, notez la déclaration."
+      turnover_changed: "Déclaration à corriger : %{declared} € déclarés, %{registered} € au registre. Corrigez-la dans l'espace URSSAF."
     errors:
       anomaly: "Anomalie inconnue ou déjà traitée."
       payment:
