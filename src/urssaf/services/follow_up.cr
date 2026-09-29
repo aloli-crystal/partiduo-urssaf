@@ -77,6 +77,13 @@ module Urssaf
       list.map { |row| payment_view(row, starts[row.filing_id!.to_i64]) }
     end
 
+    # Montant au centime, d'échelle au plus deux : un produit arrondi par
+    # `round(2)` garde son échelle d'origine (`704.40000`), que les champs
+    # décimaux à deux décimales refusent.
+    def self.cents(value : BigDecimal) : BigDecimal
+      BigDecimal.new(value.round(2, mode: :ties_away).to_s)
+    end
+
     # Montant en chaîne décimale à deux décimales (`105.00`), neutre :
     # mis en forme à l'affichage.
     def self.decimal(value : BigDecimal) : String
@@ -123,7 +130,7 @@ module Urssaf
       check_paid(filing, state, view)
       pending = view.payments.select(&.status.==("initiated")).sum(ZERO, &.amount)
       remote_due = state.total - state.paid - pending
-      amount = remote_due < remaining ? remote_due : remaining
+      amount = cents(remote_due < remaining ? remote_due : remaining)
       return result.failure(FieldError.base("urssaf.errors.payment.nothing_due")) unless amount > ZERO
       count = Payment.filter(filing_id: filing.id).count + 1
       reference = "PDUO-PAY-#{Declarations.siren}-#{filing.starts_on!.to_s("%Y%m%d")}-#{count}"

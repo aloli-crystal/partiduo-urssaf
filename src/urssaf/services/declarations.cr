@@ -352,7 +352,7 @@ module Urssaf
       row.contributions = (ack.try(&.contributions) || [] of Contribution).map do |item|
         {"category" => item.category, "turnover" => item.turnover.to_s, "amount" => item.amount.to_s}
       end.to_json
-      row.contributions_total = ack.try(&.total) || BigDecimal.new(0)
+      row.contributions_total = FollowUp.cents(ack.try(&.total) || BigDecimal.new(0))
       row.payment_due_on = ack.try(&.due_on)
       row.reason = reason
       row.transmitted_at = Time.utc

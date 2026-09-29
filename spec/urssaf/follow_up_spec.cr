@@ -69,6 +69,23 @@ describe "URSSAF — suivi, paiements et anomalies (ADR-007 D7)" do
     Api.events(S.admin).map(&.action).first(3).should eq(%w[refreshed payment_done paid])
   end
 
+  it "paie un reste dû non entier, même d'échelle supérieure à deux décimales" do
+    ready
+    S.declared_quarter
+    S.sepa
+    # 100,40 € porté avec cinq décimales, comme un produit arrondi par round(2).
+    S.urssaf.adjusted["DECL-101"] = BigDecimal.new(10_040_000, 5)
+    payment = Api.pay(S.admin, july).value!
+    payment.amount.should eq(S::Books.d("100.40"))
+    Urssaf::Payment.all.map(&.amount!.to_s).should eq(["100.4"])
+  end
+
+  it "ramène un montant au centime, d'échelle au plus deux" do
+    Urssaf::FollowUp.cents(BigDecimal.new(70_439_968, 5)).should eq(S::Books.d("704.40"))
+    Urssaf::FollowUp.cents(BigDecimal.new(70_440_000, 5)).scale.should be <= 2
+    Urssaf::FollowUp.cents(S::Books.d("0.005")).should eq(S::Books.d("0.01"))
+  end
+
   it "ouvre une anomalie pour un paiement rejeté et permet de payer de nouveau" do
     ready
     S.declared_quarter
